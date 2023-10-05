@@ -1,8 +1,14 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
-const api = {}
+const api = {
+  getClipDataList: () => ipcRenderer.invoke('getClipDataList'),
+  deleteOneData: (creationTime: number) => ipcRenderer.invoke('deleteOneData', creationTime),
+  deleteAllData: () => ipcRenderer.invoke('deleteAllData'),
+  paste: (creationTime: number) => ipcRenderer.invoke('paste', creationTime),
+  updatePageData: (callback) => ipcRenderer.on('updatePageData', callback)
+}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise

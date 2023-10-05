@@ -1,13 +1,30 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, screen, clipboard, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import clipboardListener from 'clipboard-event'
+import { keyboard, Key, mouse } from '@nut-tree/nut-js'
 import icon from '../../resources/icon.png?asset'
+import {
+  addClipData,
+  getClipDataList,
+  deleteOneData,
+  deleteAllData,
+  getClipContent
+} from '../data/operate-data'
 
 function createWindow(): void {
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width, height } = primaryDisplay.workAreaSize
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 300, // 窗口宽
+    height, // 窗口高
+    resizable: false, // 禁止改变窗口大小
+    x: width - 300, // 窗口靠右
+    y: 0,
+    alwaysOnTop: true, // 是否一直显示在最上层
+    frame: false,
+    transparent: true,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -15,6 +32,36 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
+  })
+
+  // 监听剪贴板变化
+  let disabled = false
+  clipboardListener.startListening()
+  clipboardListener.on('change', async () => {
+    if (disabled) return
+    const text = clipboard.readText()
+    if (text) {
+      await addClipData({
+        type: 'text',
+        content: text,
+        creationTime: new Date().getTime(),
+        state: 'unlocked',
+        color: 'white'
+      })
+    }
+    mainWindow.webContents.send('updatePageData', await getClipDataList())
+  })
+
+  ipcMain.handle('getClipDataList', async () => await getClipDataList())
+  ipcMain.handle('deleteOneData', async (_, creationTime) => await deleteOneData(creationTime))
+  ipcMain.handle('deleteAllData', async () => await deleteAllData())
+  ipcMain.handle('paste', async (_, creationTime) => {
+    mainWindow.minimize()
+    const content = await getClipContent(creationTime)
+    disabled = true
+    clipboard.writeText(content)
+    await keyboard.pressKey(Key.LeftControl, Key.V)
+    disabled = false
   })
 
   mainWindow.on('ready-to-show', () => {
@@ -62,6 +109,9 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  // 停止监听剪贴板
+  clipboardListener.stopListening()
+
   if (process.platform !== 'darwin') {
     app.quit()
   }

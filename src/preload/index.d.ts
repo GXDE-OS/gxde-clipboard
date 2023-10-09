@@ -4,7 +4,7 @@ declare global {
   interface Window {
     electron: ElectronAPI
     api: {
-      getClipDataList: () => Record<string, string | number>[]
+      getClipDataList: (searchString?: string) => Record<string, string | number>[]
       deleteOneData: (creationTime: number) => void
       deleteAllData: () => void
       paste: (creationTime: number) => void

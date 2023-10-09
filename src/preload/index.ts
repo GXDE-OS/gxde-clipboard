@@ -3,7 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
 const api = {
-  getClipDataList: () => ipcRenderer.invoke('getClipDataList'),
+  getClipDataList: (searchString?: string) => ipcRenderer.invoke('getClipDataList', searchString),
   deleteOneData: (creationTime: number) => ipcRenderer.invoke('deleteOneData', creationTime),
   deleteAllData: () => ipcRenderer.invoke('deleteAllData'),
   paste: (creationTime: number) => ipcRenderer.invoke('paste', creationTime),

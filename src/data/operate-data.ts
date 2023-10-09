@@ -2,8 +2,9 @@ import fs from 'fs/promises'
 
 export async function getClipDataList(searchString?: string) {
   const dataList = JSON.parse((await fs.readFile('src/data/clipboard-datas.json', 'utf-8')) || '[]')
-  if (searchString) {
-    return dataList.filter(({ content }) => content.includes(searchString))
+  if (searchString && dataList.length) {
+    const lowerCase = searchString.toLowerCase()
+    return dataList.filter(({ content }) => content.toLowerCase().includes(lowerCase))
   } else {
     return dataList
   }

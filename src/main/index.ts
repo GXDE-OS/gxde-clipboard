@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, screen, clipboard, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, screen, clipboard, ipcMain, globalShortcut } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import clipboardListener from 'clipboard-event'
@@ -52,7 +52,14 @@ function createWindow(): void {
     mainWindow.webContents.send('updatePageData', await getClipDataList())
   })
 
-  ipcMain.handle('getClipDataList', async () => await getClipDataList())
+  // 注册全局快捷键
+  if (!globalShortcut.isRegistered('Shift+CommandOrControl+V')) {
+    globalShortcut.register('Shift+CommandOrControl+V', async () => {
+      mainWindow.show()
+    })
+  }
+
+  ipcMain.handle('getClipDataList', async (_, searchString) => await getClipDataList(searchString))
   ipcMain.handle('deleteOneData', async (_, creationTime) => await deleteOneData(creationTime))
   ipcMain.handle('deleteAllData', async () => await deleteAllData())
   ipcMain.handle('paste', async (_, creationTime) => {
@@ -61,7 +68,13 @@ function createWindow(): void {
     disabled = true
     clipboard.writeText(content)
     await keyboard.pressKey(Key.LeftControl, Key.V)
+    await keyboard.releaseKey(Key.LeftControl, Key.V)
     disabled = false
+  })
+
+  // 失去焦点就隐藏窗口
+  mainWindow.on('blur', () => {
+    mainWindow.minimize()
   })
 
   mainWindow.on('ready-to-show', () => {
@@ -111,6 +124,8 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   // 停止监听剪贴板
   clipboardListener.stopListening()
+  // 注销全部快捷键
+  globalShortcut.unregisterAll()
 
   if (process.platform !== 'darwin') {
     app.quit()

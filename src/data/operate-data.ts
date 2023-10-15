@@ -30,6 +30,15 @@ export async function deleteOneData(creationTime: number) {
   await fs.writeFile('src/data/clipboard-datas.json', JSON.stringify(dataList, null, 4))
 }
 
-export async function deleteAllData() {
-  await fs.writeFile('src/data/clipboard-datas.json', '[]')
+export async function setClipboardDatas(clipboardDatas) {
+  await fs.writeFile('src/data/clipboard-datas.json', JSON.stringify(clipboardDatas, null, 4))
+}
+
+export async function changeOneData(clipboardData) {
+  const dataList = await getClipDataList()
+  Object.assign(
+    dataList.find(({ creationTime }) => creationTime === clipboardData.creationTime),
+    clipboardData
+  )
+  await fs.writeFile('src/data/clipboard-datas.json', JSON.stringify(dataList, null, 4))
 }

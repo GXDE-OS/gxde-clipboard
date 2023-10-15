@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch, nextTick } from 'vue'
+import { ref, reactive, onMounted, watch, nextTick, toRaw } from 'vue'
 
 const searchString = ref('')
 const showSearchInput = ref(false) // 是否显示搜索框
+const deleteConfirmVisible = ref(false) // 清空确认框
 const searchInput = ref()
 const clipboardDatas: Record<string, string | number>[] = reactive([])
 const previewIconVisibilityList: boolean[] = reactive([])
 const indexList: (number | null)[] = reactive([])
+const deleteWhich = ref('all') // all | unlocked
 
 onMounted(async () => {
   await search()
@@ -28,15 +30,25 @@ watch(
   }
 )
 
+function changeOneData(clipboardData, field, value) {
+  clipboardData[field] = value
+  window.api.changeOneData(toRaw(clipboardData))
+}
+
 function deleteOneData(creationTime: number) {
   const index = clipboardDatas.findIndex((item) => item.creationTime === creationTime)
   clipboardDatas.splice(index, 1)
   window.api.deleteOneData(creationTime)
 }
 
-function deleteAllData() {
-  clipboardDatas.splice(0)
-  window.api.deleteAllData()
+function setClipboardDatas() {
+  if (deleteWhich.value === 'all') {
+    clipboardDatas.splice(0)
+  } else if (deleteWhich.value === 'unlocked') {
+    const lockedDataList = clipboardDatas.filter((i) => i.state === 'locked')
+    clipboardDatas.splice(0, Infinity, ...lockedDataList)
+  }
+  window.api.setClipboardDatas(toRaw(clipboardDatas))
 }
 
 function paste(creationTime: number, type: string) {
@@ -46,8 +58,9 @@ function paste(creationTime: number, type: string) {
 async function search() {
   const dataList = await window.api.getClipDataList(searchString.value)
   clipboardDatas.splice(0, Infinity, ...dataList)
-  indexList.splice(0)
-  dataList.forEach((_, index) => (indexList[index] = index + 1))
+  nextTick(() => {
+    setIndexList()
+  })
 }
 
 function toggleSearchInputVisibility() {
@@ -63,20 +76,23 @@ function toggleSearchInputVisibility() {
 }
 
 function addScrollendEvent() {
-  document.querySelector('#body .scroll-bar')?.addEventListener('scrollend', (e: Event) => {
-    indexList.splice(0)
-    let count = 1
-    const { scrollTop, clientHeight } = e.target as HTMLElement
-    void (document.querySelectorAll('#body .footer') as NodeListOf<HTMLElement>).forEach(
-      (node, index) => {
-        if (node.offsetTop + 10 >= scrollTop && node.offsetTop <= scrollTop + clientHeight) {
-          indexList[index] = count++
-        } else {
-          indexList[index] = null
-        }
+  document.querySelector('#body .scroll-bar')?.addEventListener('scrollend', setIndexList)
+}
+
+function setIndexList() {
+  indexList.splice(0)
+  if (clipboardDatas.length === 0) return
+  let count = 1
+  const { scrollTop, clientHeight } = document.querySelector('#body .scroll-bar') as HTMLElement
+  void (document.querySelectorAll('#body .footer') as NodeListOf<HTMLElement>).forEach(
+    (node, index) => {
+      if (node.offsetTop + 10 >= scrollTop && node.offsetTop <= scrollTop + clientHeight) {
+        indexList[index] = count++
+      } else {
+        indexList[index] = null
       }
-    )
-  })
+    }
+  )
 }
 
 function addKeyUpEvent() {
@@ -87,20 +103,24 @@ function addKeyUpEvent() {
         const index = indexList.findIndex((i) => i === Number(e.key))
         const { creationTime, type } = clipboardDatas[index]
         paste(creationTime as number, type as string)
-      } else if (e.key === '[') {
+      } else if (e.key === '[' || e.key === 'PageUp') {
         const index = indexList.findIndex((i) => i)
         if (index > 0) {
           document
             .querySelectorAll('.clipboard-item')
             [index].scrollIntoView({ block: 'end', behavior: 'smooth' })
         }
-      } else if (e.key === ']') {
+      } else if (e.key === ']' || e.key === 'PageDown') {
         const index = indexList.findLastIndex((i) => i)
         if (index !== indexList.length - 1) {
           document
             .querySelectorAll('.clipboard-item')
             [index].scrollIntoView({ block: 'start', behavior: 'smooth' })
         }
+      } else if (e.key === 'Home') {
+        scollToTop()
+      } else if (e.key === 'End') {
+        scollToBottom()
       } else if (e.key === 'Escape') {
         window.api.hideMainWindow()
       }
@@ -136,16 +156,49 @@ window.api.updatePageData((_, dataList) => {
       <div>
         <b>剪贴板</b>
         <span>
-          <el-icon v-show="clipboardDatas.length" title="顶部" @click="scollToTop">
+          <el-icon v-show="!indexList.at(0)" title="顶部" @click="scollToTop">
             <Top />
           </el-icon>
-          <el-icon v-show="clipboardDatas.length" title="底部" @click="scollToBottom">
+          <el-icon v-show="!indexList.at(-1)" title="底部" @click="scollToBottom">
             <Bottom />
           </el-icon>
-          <el-icon v-show="clipboardDatas.length" title="删除未锁定项" @click="deleteAllData">
-            <Delete />
-          </el-icon>
-          <el-icon title="搜索" @click="toggleSearchInputVisibility">
+          <el-popconfirm
+            :visible="deleteConfirmVisible"
+            :title="`确定清空${deleteWhich === 'all' ? '所有' : '未锁定'}项?`"
+            :width="165"
+            @confirm="
+              () => {
+                deleteConfirmVisible = false
+                setClipboardDatas()
+              }
+            "
+            @cancel="deleteConfirmVisible = false"
+          >
+            <template #reference>
+              <el-icon
+                v-show="clipboardDatas.length"
+                title="左键清空未锁定项,右键清空所有项"
+                @click="
+                  deleteWhich === 'all'
+                    ? ((deleteWhich = 'unlocked'), (deleteConfirmVisible = true))
+                    : (deleteConfirmVisible = !deleteConfirmVisible)
+                "
+                @click.right="
+                  deleteWhich === 'unlocked'
+                    ? ((deleteWhich = 'all'), (deleteConfirmVisible = true))
+                    : (deleteConfirmVisible = !deleteConfirmVisible)
+                "
+              >
+                <Delete />
+              </el-icon>
+            </template>
+          </el-popconfirm>
+
+          <el-icon
+            v-show="!(!showSearchInput && !clipboardDatas.length)"
+            title="搜索"
+            @click="toggleSearchInputVisibility"
+          >
             <Search />
           </el-icon>
           <el-icon title="设置">
@@ -164,7 +217,7 @@ window.api.updatePageData((_, dataList) => {
       </div>
     </div>
     <div
-      v-if="clipboardDatas.length"
+      v-show="clipboardDatas.length"
       id="body"
       :style="{ height: `calc(100vh - ${showSearchInput ? 87 : 55}px)` }"
     >
@@ -175,7 +228,12 @@ window.api.updatePageData((_, dataList) => {
           class="clipboard-item"
         >
           <div class="head">
-            <div>{{ { text: '文本', image: '图片' }[clipboardData.type] }}</div>
+            <div>
+              <span>{{ { text: '文本', image: '图片' }[clipboardData.type] }}</span>
+              <el-icon v-show="clipboardData.state === 'locked'" title="已锁定">
+                <Lock />
+              </el-icon>
+            </div>
             <div>
               {{ new Date(Number(clipboardData.creationTime)).toLocaleString() }}
             </div>
@@ -186,8 +244,19 @@ window.api.updatePageData((_, dataList) => {
               <el-icon v-if="clipboardData.type == 'image'" title="预览">
                 <View />
               </el-icon>
-              <el-icon title="锁定">
+              <el-icon
+                v-show="clipboardData.state === 'unlocked'"
+                title="锁定"
+                @click="changeOneData(clipboardData, 'state', 'locked')"
+              >
                 <Lock />
+              </el-icon>
+              <el-icon
+                v-show="clipboardData.state === 'locked'"
+                title="解除锁定"
+                @click="changeOneData(clipboardData, 'state', 'unlocked')"
+              >
+                <Unlock />
               </el-icon>
               <el-icon title="删除" @click="deleteOneData(clipboardData.creationTime as number)">
                 <Close />
@@ -224,7 +293,7 @@ window.api.updatePageData((_, dataList) => {
       </el-scrollbar>
     </div>
     <el-empty
-      v-else
+      v-show="!clipboardDatas.length"
       :style="{ height: `calc(100vh - ${showSearchInput ? 87 : 55}px)` }"
       description="无数据"
     />
@@ -305,8 +374,14 @@ window.api.updatePageData((_, dataList) => {
       padding: 3px 10px;
 
       > div:first-child {
+        display: flex;
+        align-items: center;
         font-size: 14px;
         font-weight: bold;
+        i {
+          color: rgb(255, 128, 0);
+          margin-left: 2px;
+        }
       }
 
       > div:nth-child(2) {

@@ -5,8 +5,9 @@ declare global {
     electron: ElectronAPI
     api: {
       getClipDataList: (searchString?: string) => Record<string, string | number>[]
+      changeOneData: (clipboardData: Record<string, string | number>) => void
       deleteOneData: (creationTime: number) => void
-      deleteAllData: () => void
+      setClipboardDatas: (clipboardDatas: Record<string, string | number>[]) => void
       hideMainWindow: () => void
       paste: (creationTime: number, type: string) => void
       updatePageData: (

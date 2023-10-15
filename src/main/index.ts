@@ -17,8 +17,9 @@ import {
   addClipData,
   getClipDataList,
   deleteOneData,
-  deleteAllData,
-  getClipContent
+  setClipboardDatas,
+  getClipContent,
+  changeOneData
 } from '../data/operate-data'
 
 function createWindow(): void {
@@ -83,8 +84,12 @@ function createWindow(): void {
   }
 
   ipcMain.handle('getClipDataList', async (_, searchString) => await getClipDataList(searchString))
+  ipcMain.handle('changeOneData', async (_, clipboardData) => await changeOneData(clipboardData))
   ipcMain.handle('deleteOneData', async (_, creationTime) => await deleteOneData(creationTime))
-  ipcMain.handle('deleteAllData', async () => await deleteAllData())
+  ipcMain.handle(
+    'setClipboardDatas',
+    async (_, clipboardDatas) => await setClipboardDatas(clipboardDatas)
+  )
   ipcMain.handle('hideMainWindow', async () => mainWindow.minimize())
   ipcMain.handle('paste', async (_, creationTime, type) => {
     mainWindow.minimize()

@@ -4,8 +4,11 @@ import { electronAPI } from '@electron-toolkit/preload'
 // Custom APIs for renderer
 const api = {
   getClipDataList: (searchString?: string) => ipcRenderer.invoke('getClipDataList', searchString),
+  changeOneData: (clipboardData: Record<string, string | number>) =>
+    ipcRenderer.invoke('changeOneData', clipboardData),
   deleteOneData: (creationTime: number) => ipcRenderer.invoke('deleteOneData', creationTime),
-  deleteAllData: () => ipcRenderer.invoke('deleteAllData'),
+  setClipboardDatas: (clipboardDatas: Record<string, string | number>[]) =>
+    ipcRenderer.invoke('setClipboardDatas', clipboardDatas),
   hideMainWindow: () => ipcRenderer.invoke('hideMainWindow'),
   paste: (creationTime: number, type: string) => ipcRenderer.invoke('paste', creationTime, type),
   updatePageData: (callback) => ipcRenderer.on('updatePageData', callback)

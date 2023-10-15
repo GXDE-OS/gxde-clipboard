@@ -1,4 +1,13 @@
-import { app, shell, BrowserWindow, screen, clipboard, ipcMain, globalShortcut } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  screen,
+  clipboard,
+  ipcMain,
+  globalShortcut,
+  nativeImage
+} from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import clipboardListener from 'clipboard-event'
@@ -39,15 +48,29 @@ function createWindow(): void {
   clipboardListener.startListening()
   clipboardListener.on('change', async () => {
     if (disabled) return
-    const text = clipboard.readText()
-    if (text) {
+    console.log('availableFormats', clipboard.availableFormats())
+    const availableFormats = clipboard.availableFormats()
+    if (availableFormats.includes('image/png')) {
+      const img = clipboard.readImage()
+      const dataUrl = img.toDataURL()
       await addClipData({
-        type: 'text',
-        content: text,
+        type: 'image',
+        content: dataUrl,
         creationTime: new Date().getTime(),
         state: 'unlocked',
         color: 'white'
       })
+    } else if (availableFormats.includes('text/plain')) {
+      const text = clipboard.readText()
+      if (text) {
+        await addClipData({
+          type: 'text',
+          content: text,
+          creationTime: new Date().getTime(),
+          state: 'unlocked',
+          color: 'white'
+        })
+      }
     }
     mainWindow.webContents.send('updatePageData', await getClipDataList())
   })
@@ -62,11 +85,17 @@ function createWindow(): void {
   ipcMain.handle('getClipDataList', async (_, searchString) => await getClipDataList(searchString))
   ipcMain.handle('deleteOneData', async (_, creationTime) => await deleteOneData(creationTime))
   ipcMain.handle('deleteAllData', async () => await deleteAllData())
-  ipcMain.handle('paste', async (_, creationTime) => {
+  ipcMain.handle('hideMainWindow', async () => mainWindow.minimize())
+  ipcMain.handle('paste', async (_, creationTime, type) => {
     mainWindow.minimize()
     const content = await getClipContent(creationTime)
     disabled = true
-    clipboard.writeText(content)
+    if (type === 'text') {
+      clipboard.writeText(content)
+    } else if (type === 'image') {
+      const image = nativeImage.createFromDataURL(content)
+      clipboard.writeImage(image)
+    }
     await keyboard.pressKey(Key.LeftControl, Key.V)
     await keyboard.releaseKey(Key.LeftControl, Key.V)
     disabled = false

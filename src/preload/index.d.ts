@@ -7,7 +7,8 @@ declare global {
       getClipDataList: (searchString?: string) => Record<string, string | number>[]
       deleteOneData: (creationTime: number) => void
       deleteAllData: () => void
-      paste: (creationTime: number) => void
+      hideMainWindow: () => void
+      paste: (creationTime: number, type: string) => void
       updatePageData: (
         callback: (
           event: Electron.IpcRendererEvent,

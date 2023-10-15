@@ -1,14 +1,32 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch, nextTick } from 'vue'
 
 const searchString = ref('')
 const showSearchInput = ref(false) // 是否显示搜索框
 const searchInput = ref()
 const clipboardDatas: Record<string, string | number>[] = reactive([])
+const previewIconVisibilityList: boolean[] = reactive([])
+const indexList: (number | null)[] = reactive([])
 
-onMounted(() => {
-  search()
+onMounted(async () => {
+  await search()
+  addScrollendEvent()
+  addKeyUpEvent()
 })
+
+watch(
+  () => clipboardDatas.map((i) => i.content),
+  () => {
+    nextTick(() => {
+      previewIconVisibilityList.length = clipboardDatas.length
+      void [...document.querySelectorAll('.clipboard-item .content')].forEach(
+        (dom: { scrollHeight: number; clientHeight: number }, index) => {
+          previewIconVisibilityList[index] = dom.scrollHeight > dom.clientHeight
+        }
+      )
+    })
+  }
+)
 
 function deleteOneData(creationTime: number) {
   const index = clipboardDatas.findIndex((item) => item.creationTime === creationTime)
@@ -21,13 +39,15 @@ function deleteAllData() {
   window.api.deleteAllData()
 }
 
-function paste(creationTime: number) {
-  window.api.paste(creationTime)
+function paste(creationTime: number, type: string) {
+  window.api.paste(creationTime, type)
 }
 
 async function search() {
   const dataList = await window.api.getClipDataList(searchString.value)
   clipboardDatas.splice(0, Infinity, ...dataList)
+  indexList.splice(0)
+  dataList.forEach((_, index) => (indexList[index] = index + 1))
 }
 
 function toggleSearchInputVisibility() {
@@ -40,6 +60,52 @@ function toggleSearchInputVisibility() {
     searchString.value = ''
     search()
   }
+}
+
+function addScrollendEvent() {
+  document.querySelector('#body .scroll-bar')?.addEventListener('scrollend', (e: Event) => {
+    indexList.splice(0)
+    let count = 1
+    const { scrollTop, clientHeight } = e.target as HTMLElement
+    void (document.querySelectorAll('#body .footer') as NodeListOf<HTMLElement>).forEach(
+      (node, index) => {
+        if (node.offsetTop + 10 >= scrollTop && node.offsetTop <= scrollTop + clientHeight) {
+          indexList[index] = count++
+        } else {
+          indexList[index] = null
+        }
+      }
+    )
+  })
+}
+
+function addKeyUpEvent() {
+  window.addEventListener('keyup', (e: KeyboardEvent) => {
+    console.log(e.key)
+    if ((e.target as HTMLElement).tagName === 'BODY') {
+      if (e.key.match(/^\d$/)) {
+        const index = indexList.findIndex((i) => i === Number(e.key))
+        const { creationTime, type } = clipboardDatas[index]
+        paste(creationTime as number, type as string)
+      } else if (e.key === '[') {
+        const index = indexList.findIndex((i) => i)
+        if (index > 0) {
+          document
+            .querySelectorAll('.clipboard-item')
+            [index].scrollIntoView({ block: 'end', behavior: 'smooth' })
+        }
+      } else if (e.key === ']') {
+        const index = indexList.findLastIndex((i) => i)
+        if (index !== indexList.length - 1) {
+          document
+            .querySelectorAll('.clipboard-item')
+            [index].scrollIntoView({ block: 'start', behavior: 'smooth' })
+        }
+      } else if (e.key === 'Escape') {
+        window.api.hideMainWindow()
+      }
+    }
+  })
 }
 
 function scollToTop() {
@@ -102,9 +168,9 @@ window.api.updatePageData((_, dataList) => {
       id="body"
       :style="{ height: `calc(100vh - ${showSearchInput ? 87 : 55}px)` }"
     >
-      <el-scrollbar>
+      <el-scrollbar wrap-class="scroll-bar">
         <div
-          v-for="clipboardData of clipboardDatas"
+          v-for="(clipboardData, index) of clipboardDatas"
           :key="clipboardData.creationTime"
           class="clipboard-item"
         >
@@ -128,17 +194,28 @@ window.api.updatePageData((_, dataList) => {
               </el-icon>
             </div>
           </div>
-          <div class="content" @click="paste(clipboardData.creationTime as number)">
-            {{ clipboardData.content }}
+          <div
+            class="content"
+            @click="paste(clipboardData.creationTime as number, clipboardData.type as string)"
+          >
+            <span v-if="clipboardData.type === 'text'">
+              {{ clipboardData.content }}
+            </span>
+            <img
+              v-else-if="clipboardData.type === 'image'"
+              :src="clipboardData.content as string"
+              alt="图片"
+            />
           </div>
           <div class="footer">
+            <div>{{ indexList[index] }}</div>
             <el-popover placement="bottom-end" width="280">
               <template #reference>
-                <el-icon title="预览">
+                <el-icon v-show="previewIconVisibilityList[index]" title="预览">
                   <View />
                 </el-icon>
               </template>
-              <el-scrollbar max-height="60vh" always>
+              <el-scrollbar max-height="60vh" view-class="preview-scrollbar" always>
                 <pre>{{ clipboardData.content }}</pre>
               </el-scrollbar>
             </el-popover>
@@ -254,15 +331,23 @@ window.api.updatePageData((_, dataList) => {
       padding: 10px 10px 0 10px;
       cursor: pointer;
       overflow: hidden;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 3;
+      span {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        word-wrap: anywhere;
+      }
+      img {
+        width: 100%;
+        max-height: 100px;
+        object-fit: scale-down;
+      }
     }
 
     .footer {
       display: flex;
       align-items: start;
-      justify-content: flex-end;
+      justify-content: space-between;
       background-color: rgba(255, 255, 255, 0.6);
       font-size: 12px;
       color: rgba(0, 0, 0, 0.5);
@@ -275,5 +360,9 @@ window.api.updatePageData((_, dataList) => {
       }
     }
   }
+}
+
+.preview-scrollbar pre {
+  margin: 5px;
 }
 </style>

@@ -6,7 +6,8 @@ const api = {
   getClipDataList: (searchString?: string) => ipcRenderer.invoke('getClipDataList', searchString),
   deleteOneData: (creationTime: number) => ipcRenderer.invoke('deleteOneData', creationTime),
   deleteAllData: () => ipcRenderer.invoke('deleteAllData'),
-  paste: (creationTime: number) => ipcRenderer.invoke('paste', creationTime),
+  hideMainWindow: () => ipcRenderer.invoke('hideMainWindow'),
+  paste: (creationTime: number, type: string) => ipcRenderer.invoke('paste', creationTime, type),
   updatePageData: (callback) => ipcRenderer.on('updatePageData', callback)
 }
 

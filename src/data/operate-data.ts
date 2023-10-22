@@ -17,6 +17,7 @@ export async function getClipContent(creationTime: number) {
 
 export async function addClipData(data) {
   const dataList = JSON.parse((await fs.readFile('src/data/clipboard-datas.json', 'utf-8')) || '[]')
+  if (dataList[0]?.type === data.type && dataList[0]?.content === data.content) return
   dataList.unshift(data)
   await fs.writeFile('src/data/clipboard-datas.json', JSON.stringify(dataList, null, 4))
 }

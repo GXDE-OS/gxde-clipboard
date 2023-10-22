@@ -2,6 +2,7 @@ import {
   app,
   shell,
   BrowserWindow,
+  Tray,
   screen,
   clipboard,
   ipcMain,
@@ -11,8 +12,8 @@ import {
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import clipboardListener from 'clipboard-event'
-import { keyboard, Key, mouse } from '@nut-tree/nut-js'
-import icon from '../../resources/icon.png?asset'
+import { keyboard, Key /* mouse */ } from '@nut-tree/nut-js'
+import icon from '../../resources/icon.ico?asset'
 import {
   addClipData,
   getClipDataList,
@@ -32,16 +33,28 @@ function createWindow(): void {
     resizable: false, // 禁止改变窗口大小
     x: width - 300, // 窗口靠右
     y: 0,
-    alwaysOnTop: true, // 是否一直显示在最上层
+    alwaysOnTop: false, // 是否一直显示在最上层
     frame: false,
     transparent: true,
     show: false,
+    type: 'toolbar', // 不显示任务栏窗口
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
+  })
+
+  // 创建托盘图标
+  const tray = new Tray(icon)
+  tray.setToolTip('clip')
+  tray.on('click', function () {
+    mainWindow.show()
+    mainWindow.focus()
+  })
+  tray.on('right-click', function () {
+    mainWindow.close()
   })
 
   // 监听剪贴板变化

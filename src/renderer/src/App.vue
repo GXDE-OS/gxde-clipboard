@@ -165,6 +165,8 @@ window.api.updatePageData((_, dataList) => {
           <el-popconfirm
             :visible="deleteConfirmVisible"
             :title="`确定清空${deleteWhich === 'all' ? '所有' : '未锁定'}项?`"
+            confirm-button-text="是"
+            cancel-button-text="否"
             :width="165"
             @confirm="
               () => {
@@ -227,7 +229,17 @@ window.api.updatePageData((_, dataList) => {
           :key="clipboardData.creationTime"
           class="clipboard-item"
         >
-          <div class="head">
+          <div
+            class="head"
+            @dblclick.self="
+              changeOneData(
+                clipboardData,
+                'state',
+                clipboardData.state === 'unlocked' ? 'locked' : 'unlocked'
+              )
+            "
+            @click.middle.self="deleteOneData(clipboardData.creationTime as number)"
+          >
             <div>
               <span>{{ { text: '文本', image: '图片' }[clipboardData.type] }}</span>
               <el-icon v-show="clipboardData.state === 'locked'" title="已锁定">
@@ -284,7 +296,7 @@ window.api.updatePageData((_, dataList) => {
                   <View />
                 </el-icon>
               </template>
-              <el-scrollbar max-height="60vh" view-class="preview-scrollbar" always>
+              <el-scrollbar max-height="50vh" view-class="preview-scrollbar" always>
                 <pre>{{ clipboardData.content }}</pre>
               </el-scrollbar>
             </el-popover>
@@ -372,6 +384,7 @@ window.api.updatePageData((_, dataList) => {
       justify-content: space-between;
       background-color: rgba(255, 255, 255, 0.9);
       padding: 3px 10px;
+      user-select: none;
 
       > div:first-child {
         display: flex;

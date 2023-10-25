@@ -9,6 +9,16 @@ const clipboardDatas: Record<string, string | number>[] = reactive([])
 const previewIconVisibilityList: boolean[] = reactive([])
 const indexList: (number | null)[] = reactive([])
 const deleteWhich = ref('all') // all | unlocked
+const colorList = reactive([
+  '#ec2c64',
+  '#f46fa1',
+  '#fba414',
+  '#d5b2ac',
+  '#84b6c0',
+  '#b4ca5f',
+  '#6c36b1'
+])
+const currentColor = ref('')
 
 onMounted(async () => {
   await search()
@@ -27,6 +37,23 @@ watch(
         }
       )
     })
+  }
+)
+
+watch(currentColor, () => {
+  nextTick(() => {
+    setIndexList()
+    bodyFocus()
+  })
+})
+
+watch(
+  () => clipboardDatas.map((i) => i.color),
+  () => {
+    bodyFocus()
+    if (currentColor.value) {
+      nextTick(setIndexList)
+    }
   }
 )
 
@@ -84,10 +111,18 @@ function setIndexList() {
   if (clipboardDatas.length === 0) return
   let count = 1
   const { scrollTop, clientHeight } = document.querySelector('#body .scroll-bar') as HTMLElement
-  void (document.querySelectorAll('#body .footer') as NodeListOf<HTMLElement>).forEach(
+  void (document.querySelectorAll('#body .clipboard-item') as NodeListOf<HTMLElement>).forEach(
     (node, index) => {
-      if (node.offsetTop + 10 >= scrollTop && node.offsetTop <= scrollTop + clientHeight) {
-        indexList[index] = count++
+      if (node.style.display === '') {
+        const footerNode = node.querySelector('.footer') as HTMLElement
+        if (
+          footerNode.offsetTop + 10 >= scrollTop &&
+          footerNode.offsetTop <= scrollTop + clientHeight
+        ) {
+          indexList[index] = count++
+        } else {
+          indexList[index] = null
+        }
       } else {
         indexList[index] = null
       }
@@ -148,13 +183,38 @@ function scollToBottom() {
 window.api.updatePageData((_, dataList) => {
   clipboardDatas.splice(0, Infinity, ...dataList)
 })
+
+// 使popover失去焦点
+function bodyFocus() {
+  void (document.querySelector('body') as HTMLElement).click()
+}
 </script>
 
 <template>
   <div id="wrapper">
     <div id="head">
       <div>
-        <b>剪贴板</b>
+        <el-popover placement="bottom-end" :width="200" trigger="click">
+          <template #reference>
+            <b
+              :style="{ color: currentColor || '#000000', cursor: 'pointer' }"
+              title="右键取消标记"
+              @click.right="currentColor = ''"
+              >剪贴板</b
+            >
+          </template>
+          <div class="color">
+            <div
+              v-for="color of colorList"
+              :key="color"
+              :style="{
+                backgroundColor: color,
+                borderColor: currentColor === color ? color : undefined
+              }"
+              @click="currentColor = currentColor === color ? '' : color"
+            ></div>
+          </div>
+        </el-popover>
         <span>
           <el-icon v-show="!indexList.at(0)" title="顶部" @click="scollToTop">
             <Top />
@@ -226,6 +286,7 @@ window.api.updatePageData((_, dataList) => {
       <el-scrollbar wrap-class="scroll-bar">
         <div
           v-for="(clipboardData, index) of clipboardDatas"
+          v-show="currentColor ? currentColor === clipboardData.color : true"
           :key="clipboardData.creationTime"
           class="clipboard-item"
         >
@@ -241,7 +302,36 @@ window.api.updatePageData((_, dataList) => {
             @click.middle.self="deleteOneData(clipboardData.creationTime as number)"
           >
             <div>
-              <span>{{ { text: '文本', image: '图片' }[clipboardData.type] }}</span>
+              <el-popover placement="right" :width="200" :teleported="false" trigger="click">
+                <template #reference>
+                  <b
+                    :style="{
+                      color: (clipboardData.color as string) || '#000000',
+                      cursor: 'pointer'
+                    }"
+                    title="右键取消标记"
+                    @click.right="changeOneData(clipboardData, 'color', '')"
+                    >{{ { text: '文本', image: '图片' }[clipboardData.type] }}</b
+                  >
+                </template>
+                <div class="color">
+                  <div
+                    v-for="color of colorList"
+                    :key="color"
+                    :style="{
+                      backgroundColor: color,
+                      borderColor: clipboardData.color === color ? color : undefined
+                    }"
+                    @click="
+                      changeOneData(
+                        clipboardData,
+                        'color',
+                        (clipboardData.color = clipboardData.color === color ? '' : color)
+                      )
+                    "
+                  ></div>
+                </div>
+              </el-popover>
               <el-icon v-show="clipboardData.state === 'locked'" title="已锁定">
                 <Lock />
               </el-icon>
@@ -390,7 +480,6 @@ window.api.updatePageData((_, dataList) => {
         display: flex;
         align-items: center;
         font-size: 14px;
-        font-weight: bold;
         i {
           color: rgb(255, 128, 0);
           margin-left: 2px;
@@ -452,5 +541,18 @@ window.api.updatePageData((_, dataList) => {
 
 .preview-scrollbar pre {
   margin: 5px;
+}
+.color {
+  display: flex;
+  justify-content: space-between;
+  > div {
+    border: 2px solid white;
+    padding: 1.5px;
+    background-clip: content-box;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
 }
 </style>

@@ -72,7 +72,7 @@ function createWindow(): void {
         content: dataUrl,
         creationTime: new Date().getTime(),
         state: 'unlocked',
-        color: 'white'
+        color: ''
       })
     } else if (availableFormats.includes('text/plain')) {
       const text = clipboard.readText()
@@ -82,7 +82,7 @@ function createWindow(): void {
           content: text,
           creationTime: new Date().getTime(),
           state: 'unlocked',
-          color: 'white'
+          color: ''
         })
       }
     }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch, nextTick, toRaw } from 'vue'
 
+const transparency = ref(0.5)
 const searchString = ref('')
 const showSearchInput = ref(false) // 是否显示搜索框
 const deleteConfirmVisible = ref(false) // 清空确认框
@@ -23,6 +24,7 @@ const currentColor = ref('')
 onMounted(async () => {
   await search()
   addScrollendEvent()
+  addWheelEvent()
   addKeyUpEvent()
 })
 
@@ -90,8 +92,12 @@ async function search() {
   })
 }
 
-function toggleSearchInputVisibility() {
-  showSearchInput.value = !showSearchInput.value
+function changeSearchInputVisibility(visibility?: boolean) {
+  if (typeof visibility === 'boolean') {
+    showSearchInput.value = visibility
+  } else {
+    showSearchInput.value = !showSearchInput.value
+  }
   if (showSearchInput.value) {
     // 显示搜索框后自动获取焦点
     searchInput.value.focus()
@@ -104,6 +110,20 @@ function toggleSearchInputVisibility() {
 
 function addScrollendEvent() {
   document.querySelector('#body .scroll-bar')?.addEventListener('scrollend', setIndexList)
+}
+
+function addWheelEvent() {
+  // 调节透明度
+  addEventListener('wheel', (e) => {
+    if (e.ctrlKey) {
+      if (
+        transparency.value + e.deltaY * 0.001 >= 0 &&
+        transparency.value + e.deltaY * 0.001 <= 1
+      ) {
+        transparency.value += e.deltaY * 0.001
+      }
+    }
+  })
 }
 
 function setIndexList() {
@@ -138,6 +158,9 @@ function addKeyUpEvent() {
         const index = indexList.findIndex((i) => i === Number(e.key))
         const { creationTime, type } = clipboardDatas[index]
         paste(creationTime as number, type as string)
+      } else if (e.ctrlKey && e.key === 'f') {
+        // 搜索快捷键
+        changeSearchInputVisibility()
       } else if (e.key === '[' || e.key === 'PageUp') {
         const index = indexList.findIndex((i) => i)
         if (index > 0) {
@@ -161,6 +184,16 @@ function addKeyUpEvent() {
       }
     }
   })
+}
+
+function handleSearchInputKeyUp(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    changeSearchInputVisibility(false)
+  } else if (e.ctrlKey && e.key.match(/^\d$/)) {
+    const index = indexList.findIndex((i) => i === Number(e.key))
+    const { creationTime, type } = clipboardDatas[index]
+    paste(creationTime as number, type as string)
+  }
 }
 
 function scollToTop() {
@@ -191,7 +224,7 @@ function bodyFocus() {
 </script>
 
 <template>
-  <div id="wrapper">
+  <div id="wrapper" :style="{ '--transparency': transparency }">
     <div id="head">
       <div>
         <el-popover placement="bottom-end" :width="200" trigger="click">
@@ -216,10 +249,10 @@ function bodyFocus() {
           </div>
         </el-popover>
         <span>
-          <el-icon v-show="!indexList.at(0)" title="顶部" @click="scollToTop">
+          <el-icon v-show="!indexList.at(0)" title="顶部 (Home)" @click="scollToTop">
             <Top />
           </el-icon>
-          <el-icon v-show="!indexList.at(-1)" title="底部" @click="scollToBottom">
+          <el-icon v-show="!indexList.at(-1)" title="底部 (End)" @click="scollToBottom">
             <Bottom />
           </el-icon>
           <el-popconfirm
@@ -258,8 +291,8 @@ function bodyFocus() {
 
           <el-icon
             v-show="!(!showSearchInput && !clipboardDatas.length)"
-            title="搜索"
-            @click="toggleSearchInputVisibility"
+            title="搜索 (Ctrl+F)"
+            @click="changeSearchInputVisibility()"
           >
             <Search />
           </el-icon>
@@ -275,6 +308,7 @@ function bodyFocus() {
           placeholder="搜索"
           clearable
           @input="search"
+          @keyup.stop="handleSearchInputKeyUp"
         />
       </div>
     </div>
@@ -408,8 +442,8 @@ function bodyFocus() {
 #wrapper {
   margin: 10px;
   border-radius: 5px;
-  background-color: rgba(255, 255, 255, 0.5);
-  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+  background-color: rgba(255, 255, 255, var(--transparency));
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, var(--transparency));
 }
 
 #head > div {

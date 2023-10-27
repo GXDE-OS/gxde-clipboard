@@ -5,11 +5,11 @@ const transparency = ref(0.5)
 const searchString = ref('')
 const showSearchInput = ref(false) // 是否显示搜索框
 const deleteConfirmVisible = ref(false) // 清空确认框
-const searchInput = ref()
-const clipboardDatas: Record<string, string | number>[] = reactive([])
+const searchInput = ref() // 获得搜索框dom
+const clipboardDatas: ClipboardData[] = reactive([])
 const previewIconVisibilityList: boolean[] = reactive([])
-const indexList: (number | null)[] = reactive([])
-const deleteWhich = ref('all') // all | unlocked
+const markMap = reactive(new Map()) // 记录标记信息
+const deleteWhich = ref('all') // 'all' | 'normal'
 const colorList = reactive([
   '#ec2c64',
   '#f46fa1',
@@ -22,7 +22,7 @@ const colorList = reactive([
 const currentColor = ref('')
 
 onMounted(async () => {
-  await search()
+  clipboardDatas.push(...(await window.api.getClipDataList()))
   addScrollendEvent()
   addWheelEvent()
   addKeyUpEvent()
@@ -42,22 +42,10 @@ watch(
   }
 )
 
-watch(currentColor, () => {
-  nextTick(() => {
-    setIndexList()
-    bodyFocus()
-  })
+watch([searchString, currentColor, clipboardDatas], () => {
+  bodyFocus()
+  nextTick(setMarkMap)
 })
-
-watch(
-  () => clipboardDatas.map((i) => i.color),
-  () => {
-    bodyFocus()
-    if (currentColor.value) {
-      nextTick(setIndexList)
-    }
-  }
-)
 
 function changeOneData(clipboardData, field, value) {
   clipboardData[field] = value
@@ -73,23 +61,36 @@ function deleteOneData(creationTime: number) {
 function setClipboardDatas() {
   if (deleteWhich.value === 'all') {
     clipboardDatas.splice(0)
-  } else if (deleteWhich.value === 'unlocked') {
-    const lockedDataList = clipboardDatas.filter((i) => i.state === 'locked')
+  } else if (deleteWhich.value === 'normal') {
+    const lockedDataList = clipboardDatas.filter((i) => i.state !== '' || i.order)
     clipboardDatas.splice(0, Infinity, ...lockedDataList)
   }
   window.api.setClipboardDatas(toRaw(clipboardDatas))
 }
 
-function paste(creationTime: number, type: string) {
-  window.api.paste(creationTime, type)
+function paste(clipboardData) {
+  window.api.paste(toRaw(clipboardData))
 }
 
-async function search() {
-  const dataList = await window.api.getClipDataList(searchString.value)
-  clipboardDatas.splice(0, Infinity, ...dataList)
-  nextTick(() => {
-    setIndexList()
-  })
+function top(clipboardData) {
+  const minOrder = Math.min(...clipboardDatas.map(({ order }) => order))
+  clipboardData.order = minOrder - 1
+  changeOneData(clipboardData, 'order', clipboardData.order)
+}
+
+function nodeVisible(clipboardData) {
+  if (searchString.value) {
+    if (clipboardData.type === 'text') {
+      return (
+        clipboardData.content.toLowerCase().includes(searchString.value.toLowerCase()) &&
+        (currentColor.value ? currentColor.value === clipboardData.color : true)
+      )
+    } else {
+      return false
+    }
+  } else {
+    return currentColor.value ? currentColor.value === clipboardData.color : true
+  }
 }
 
 function changeSearchInputVisibility(visibility?: boolean) {
@@ -100,16 +101,29 @@ function changeSearchInputVisibility(visibility?: boolean) {
   }
   if (showSearchInput.value) {
     // 显示搜索框后自动获取焦点
-    searchInput.value.focus()
+    nextTick(() => {
+      searchInput.value.focus()
+    })
   } else {
     // 隐藏搜索框后清空搜索字符串,重新获取所有剪贴板数据
     searchString.value = ''
-    search()
   }
 }
 
+function highlightSearchString(content: string) {
+  // 转义
+  content = content.replace(
+    /[<>&"]/g,
+    (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c] || c
+  )
+  if (searchString.value) {
+    content = content.replace(new RegExp(searchString.value, 'ig'), '<span>$&</span>')
+  }
+  return content
+}
+
 function addScrollendEvent() {
-  document.querySelector('#body .scroll-bar')?.addEventListener('scrollend', setIndexList)
+  document.querySelector('#body .scroll-bar-wrap-class')?.addEventListener('scrollend', setMarkMap)
 }
 
 function addWheelEvent() {
@@ -126,62 +140,110 @@ function addWheelEvent() {
   })
 }
 
-function setIndexList() {
-  indexList.splice(0)
+function setMarkMap() {
+  markMap.clear()
   if (clipboardDatas.length === 0) return
   let count = 1
-  const { scrollTop, clientHeight } = document.querySelector('#body .scroll-bar') as HTMLElement
-  void (document.querySelectorAll('#body .clipboard-item') as NodeListOf<HTMLElement>).forEach(
-    (node, index) => {
-      if (node.style.display === '') {
-        const footerNode = node.querySelector('.footer') as HTMLElement
-        if (
-          footerNode.offsetTop + 10 >= scrollTop &&
-          footerNode.offsetTop <= scrollTop + clientHeight
-        ) {
-          indexList[index] = count++
-        } else {
-          indexList[index] = null
-        }
-      } else {
-        indexList[index] = null
-      }
-    }
+  const { scrollTop, clientHeight } = document.querySelector(
+    '#body .scroll-bar-wrap-class'
+  ) as HTMLElement
+  const nodeList = Array.from(
+    document.querySelectorAll('#body .clipboard-item') as NodeListOf<HTMLElement>
   )
+  nodeList.sort((a, b) => {
+    return Number(a.style.order) - Number(b.style.order)
+  })
+  nodeList.forEach((node) => {
+    const creationTime = Number(node.dataset['creationTime'])
+    if (node.style.display === '') {
+      const footerNode = node.querySelector('.footer') as HTMLElement
+      if (
+        footerNode.offsetTop + 10 >= scrollTop &&
+        footerNode.offsetTop <= scrollTop + clientHeight
+      ) {
+        markMap.set(creationTime, count++)
+      } else {
+        markMap.set(creationTime, null)
+      }
+    } else {
+      markMap.set(creationTime, null)
+    }
+  })
+}
+
+function deltaTime(creationTime: number) {
+  let delta = Date.now() - creationTime
+  const binaryInfoList = [
+    { unit: '毫秒', binary: 1000, last: 0 },
+    { unit: '秒', binary: 60, last: 0 },
+    { unit: '分钟', binary: 60, last: 0 },
+    { unit: '小时', binary: 24, last: 0 },
+    { unit: '天', binary: Infinity, last: 0 }
+  ]
+  for (const binaryInfo of binaryInfoList) {
+    binaryInfo.last = delta % binaryInfo.binary
+    delta = Math.floor(delta / binaryInfo.binary)
+    if (delta === 0) break
+  }
+  const maxUnitItem = binaryInfoList.findLast((i) => i.last)
+  if (maxUnitItem && maxUnitItem.unit !== '毫秒') {
+    return `${maxUnitItem.last}${maxUnitItem.unit}前`
+  } else {
+    return '刚刚'
+  }
 }
 
 function addKeyUpEvent() {
   window.addEventListener('keyup', (e: KeyboardEvent) => {
     console.log(e.key)
-    if ((e.target as HTMLElement).tagName === 'BODY') {
-      if (e.key.match(/^\d$/)) {
-        const index = indexList.findIndex((i) => i === Number(e.key))
-        const { creationTime, type } = clipboardDatas[index]
-        paste(creationTime as number, type as string)
-      } else if (e.ctrlKey && e.key === 'f') {
-        // 搜索快捷键
-        changeSearchInputVisibility()
-      } else if (e.key === '[' || e.key === 'PageUp') {
-        const index = indexList.findIndex((i) => i)
-        if (index > 0) {
-          document
-            .querySelectorAll('.clipboard-item')
-            [index].scrollIntoView({ block: 'end', behavior: 'smooth' })
+    if ((e.target as HTMLElement).tagName !== 'BODY') return
+    if (e.key.match(/^\d$/)) {
+      let creationTime: number | undefined
+      for (const [key, value] of markMap) {
+        if (value === Number(e.key)) {
+          creationTime = key
+          break
         }
-      } else if (e.key === ']' || e.key === 'PageDown') {
-        const index = indexList.findLastIndex((i) => i)
-        if (index !== indexList.length - 1) {
-          document
-            .querySelectorAll('.clipboard-item')
-            [index].scrollIntoView({ block: 'start', behavior: 'smooth' })
-        }
-      } else if (e.key === 'Home') {
-        scollToTop()
-      } else if (e.key === 'End') {
-        scollToBottom()
-      } else if (e.key === 'Escape') {
-        window.api.hideMainWindow()
       }
+      if (creationTime) {
+        const clipboardData = clipboardDatas.find((i) => i.creationTime === creationTime)
+        paste(clipboardData)
+      }
+    } else if (e.ctrlKey && e.key === 'f') {
+      // 搜索快捷键
+      changeSearchInputVisibility()
+    } else if (e.key === '[' || e.key === 'PageUp') {
+      let creationTime: number | undefined
+      for (const [key, value] of markMap) {
+        if (value) {
+          creationTime = key
+          break
+        }
+      }
+      if (creationTime) {
+        document
+          .querySelector(`.clipboard-item[data-creation-time="${creationTime}"]`)
+          ?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+      }
+    } else if (e.key === ']' || e.key === 'PageDown') {
+      let creationTime: number | undefined
+      for (const [key, value] of [...markMap].reverse()) {
+        if (value) {
+          creationTime = key
+          break
+        }
+      }
+      if (creationTime) {
+        document
+          .querySelector(`.clipboard-item[data-creation-time="${creationTime}"]`)
+          ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      }
+    } else if (e.key === 'Home') {
+      scrollToTop()
+    } else if (e.key === 'End') {
+      scrollToBottom()
+    } else if (e.key === 'Escape') {
+      window.api.hideMainWindow()
     }
   })
 }
@@ -190,26 +252,37 @@ function handleSearchInputKeyUp(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     changeSearchInputVisibility(false)
   } else if (e.ctrlKey && e.key.match(/^\d$/)) {
-    const index = indexList.findIndex((i) => i === Number(e.key))
-    const { creationTime, type } = clipboardDatas[index]
-    paste(creationTime as number, type as string)
+    let creationTime: number | undefined
+    for (const [key, value] of markMap) {
+      if (value === Number(e.key)) {
+        creationTime = key
+        break
+      }
+    }
+    if (creationTime) {
+      const clipboardData = clipboardDatas.find((i) => i.creationTime === creationTime)
+      paste(clipboardData)
+    }
   }
 }
 
-function scollToTop() {
-  if (clipboardDatas.length) {
-    document.querySelectorAll('.clipboard-item')[0].scrollIntoView({
-      behavior: 'smooth'
-    })
+function scrollToTop() {
+  if (!clipboardDatas.length) return
+  const creationTime = [...markMap].at(0)?.[0]
+  if (creationTime) {
+    document
+      .querySelector(`.clipboard-item[data-creation-time="${creationTime}"]`)
+      ?.scrollIntoView({ behavior: 'smooth' })
   }
 }
 
-function scollToBottom() {
-  if (clipboardDatas.length) {
-    const items = document.querySelectorAll('.clipboard-item')
-    items[items.length - 1].scrollIntoView({
-      behavior: 'smooth'
-    })
+function scrollToBottom() {
+  if (!clipboardDatas.length) return
+  const creationTime = [...markMap].at(-1)?.[0]
+  if (creationTime) {
+    document
+      .querySelector(`.clipboard-item[data-creation-time="${creationTime}"]`)
+      ?.scrollIntoView({ behavior: 'smooth' })
   }
 }
 
@@ -230,8 +303,9 @@ function bodyFocus() {
         <el-popover placement="bottom-end" :width="200" trigger="click">
           <template #reference>
             <b
-              :style="{ color: currentColor || '#000000', cursor: 'pointer' }"
-              title="右键取消标记"
+              id="title"
+              :style="{ color: currentColor || '#000000' }"
+              title="单击设置标记(右键取消标记)"
               @click.right="currentColor = ''"
               >剪贴板</b
             >
@@ -249,15 +323,15 @@ function bodyFocus() {
           </div>
         </el-popover>
         <span>
-          <el-icon v-show="!indexList.at(0)" title="顶部 (Home)" @click="scollToTop">
-            <Top />
+          <el-icon v-show="![...markMap].at(0)?.[1]" title="顶部 (Home)" @click="scrollToTop">
+            <ArrowUp />
           </el-icon>
-          <el-icon v-show="!indexList.at(-1)" title="底部 (End)" @click="scollToBottom">
-            <Bottom />
+          <el-icon v-show="![...markMap].at(-1)?.[1]" title="底部 (End)" @click="scrollToBottom">
+            <ArrowDown />
           </el-icon>
           <el-popconfirm
             :visible="deleteConfirmVisible"
-            :title="`确定清空${deleteWhich === 'all' ? '所有' : '未锁定'}项?`"
+            :title="`确定清空${deleteWhich === 'all' ? '所有' : '一般'}项?`"
             confirm-button-text="是"
             cancel-button-text="否"
             :width="165"
@@ -272,14 +346,14 @@ function bodyFocus() {
             <template #reference>
               <el-icon
                 v-show="clipboardDatas.length"
-                title="左键清空未锁定项,右键清空所有项"
+                title="左键清空一般项,右键清空所有项"
                 @click="
                   deleteWhich === 'all'
-                    ? ((deleteWhich = 'unlocked'), (deleteConfirmVisible = true))
+                    ? ((deleteWhich = 'normal'), (deleteConfirmVisible = true))
                     : (deleteConfirmVisible = !deleteConfirmVisible)
                 "
                 @click.right="
-                  deleteWhich === 'unlocked'
+                  deleteWhich === 'normal'
                     ? ((deleteWhich = 'all'), (deleteConfirmVisible = true))
                     : (deleteConfirmVisible = !deleteConfirmVisible)
                 "
@@ -307,7 +381,6 @@ function bodyFocus() {
           v-model="searchString"
           placeholder="搜索"
           clearable
-          @input="search"
           @keyup.stop="handleSearchInputKeyUp"
         />
       </div>
@@ -317,30 +390,28 @@ function bodyFocus() {
       id="body"
       :style="{ height: `calc(100vh - ${showSearchInput ? 87 : 55}px)` }"
     >
-      <el-scrollbar wrap-class="scroll-bar">
+      <el-scrollbar wrap-class="scroll-bar-wrap-class" view-class="scroll-bar-view-class">
         <div
           v-for="(clipboardData, index) of clipboardDatas"
-          v-show="currentColor ? currentColor === clipboardData.color : true"
+          v-show="nodeVisible(clipboardData)"
           :key="clipboardData.creationTime"
+          :data-creation-time="clipboardData.creationTime"
           class="clipboard-item"
+          :style="{ order: clipboardData.order }"
         >
           <div
             class="head"
             @dblclick.self="
-              changeOneData(
-                clipboardData,
-                'state',
-                clipboardData.state === 'unlocked' ? 'locked' : 'unlocked'
-              )
+              changeOneData(clipboardData, 'state', clipboardData.state === '' ? 'locked' : '')
             "
-            @click.middle.self="deleteOneData(clipboardData.creationTime as number)"
+            @click.middle.self="deleteOneData(clipboardData.creationTime)"
           >
             <div>
               <el-popover placement="right" :width="200" :teleported="false" trigger="click">
                 <template #reference>
                   <b
                     :style="{
-                      color: (clipboardData.color as string) || '#000000',
+                      color: clipboardData.color || '#000000',
                       cursor: 'pointer'
                     }"
                     title="右键取消标记"
@@ -366,54 +437,62 @@ function bodyFocus() {
                   ></div>
                 </div>
               </el-popover>
-              <el-icon v-show="clipboardData.state === 'locked'" title="已锁定">
+              <div
+                v-show="clipboardData.order"
+                class="topping"
+                title="已置顶(单击取消置顶)"
+                @click="changeOneData(clipboardData, 'order', 0)"
+              >
+                顶
+              </div>
+              <el-icon
+                v-show="clipboardData.state === 'locked'"
+                title="已锁定(单击解锁)"
+                @click="changeOneData(clipboardData, 'state', '')"
+              >
                 <Lock />
               </el-icon>
             </div>
             <div>
-              {{ new Date(Number(clipboardData.creationTime)).toLocaleString() }}
+              {{ deltaTime(clipboardData.creationTime) }}
             </div>
             <div>
-              <el-icon v-if="clipboardData.type == 'text'" title="编辑">
+              <!-- <el-icon v-if="clipboardData.type == 'text'" title="编辑">
                 <EditPen />
               </el-icon>
               <el-icon v-if="clipboardData.type == 'image'" title="预览">
                 <View />
-              </el-icon>
+              </el-icon> -->
               <el-icon
-                v-show="clipboardData.state === 'unlocked'"
+                v-show="clipboardData.state === ''"
                 title="锁定"
                 @click="changeOneData(clipboardData, 'state', 'locked')"
               >
                 <Lock />
               </el-icon>
-              <el-icon
-                v-show="clipboardData.state === 'locked'"
-                title="解除锁定"
-                @click="changeOneData(clipboardData, 'state', 'unlocked')"
-              >
-                <Unlock />
+              <el-icon title="置顶" @click="top(clipboardData)">
+                <Top />
               </el-icon>
-              <el-icon title="删除" @click="deleteOneData(clipboardData.creationTime as number)">
+              <el-icon title="删除" @click="deleteOneData(clipboardData.creationTime)">
                 <Close />
               </el-icon>
             </div>
           </div>
-          <div
-            class="content"
-            @click="paste(clipboardData.creationTime as number, clipboardData.type as string)"
-          >
-            <span v-if="clipboardData.type === 'text'">
-              {{ clipboardData.content }}
-            </span>
+          <div class="content" @click="paste(clipboardData)">
+            <p
+              v-if="clipboardData.type === 'text'"
+              v-html="highlightSearchString(clipboardData.content)"
+            ></p>
             <img
               v-else-if="clipboardData.type === 'image'"
-              :src="clipboardData.content as string"
+              :src="clipboardData.content"
               alt="图片"
             />
           </div>
           <div class="footer">
-            <div>{{ indexList[index] }}</div>
+            <div :title="`键${markMap.get(clipboardData.creationTime)}直接上屏`">
+              {{ markMap.get(clipboardData.creationTime) }}
+            </div>
             <el-popover placement="bottom-end" width="280">
               <template #reference>
                 <el-icon v-show="previewIconVisibilityList[index]" title="预览">
@@ -444,6 +523,11 @@ function bodyFocus() {
   border-radius: 5px;
   background-color: rgba(255, 255, 255, var(--transparency));
   box-shadow: 0px 0px 10px rgba(0, 0, 0, var(--transparency));
+
+  #title {
+    cursor: pointer;
+    text-shadow: white 0px 0px 5px;
+  }
 }
 
 #head > div {
@@ -474,6 +558,10 @@ function bodyFocus() {
   overflow: hidden;
   padding: 10px 0;
 
+  .scroll-bar-view-class {
+    display: flex;
+    flex-direction: column;
+  }
   .clipboard-item {
     display: flex;
     flex-direction: column;
@@ -482,6 +570,7 @@ function bodyFocus() {
     margin: 0px 10px 10px 10px;
     box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
     min-height: 50px;
+    transition: order 1s 0s ease;
 
     &:hover {
       background-color: rgba(255, 255, 255, 0.9);
@@ -518,6 +607,17 @@ function bodyFocus() {
           color: rgb(255, 128, 0);
           margin-left: 2px;
         }
+        .topping {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 9px;
+          background-color: #ff8000;
+          color: white;
+          padding: 1px 3px;
+          border-radius: 4px;
+          margin-left: 2px;
+        }
       }
 
       > div:nth-child(2) {
@@ -539,14 +639,18 @@ function bodyFocus() {
 
     .content {
       background-color: rgba(255, 255, 255, 0.6);
-      padding: 10px 10px 0 10px;
+      padding: 5px 10px;
       cursor: pointer;
       overflow: hidden;
-      span {
+      p {
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 3;
         word-wrap: anywhere;
+        span {
+          background-color: #ff8000;
+          border-radius: 3px;
+        }
       }
       img {
         width: 100%;

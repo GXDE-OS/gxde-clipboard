@@ -4,17 +4,14 @@ declare global {
   interface Window {
     electron: ElectronAPI
     api: {
-      getClipDataList: (searchString?: string) => Record<string, string | number>[]
-      changeOneData: (clipboardData: Record<string, string | number>) => void
+      getClipDataList: (searchString?: string) => ClipboardData[]
+      changeOneData: (clipboardData: ClipboardData) => void
       deleteOneData: (creationTime: number) => void
-      setClipboardDatas: (clipboardDatas: Record<string, string | number>[]) => void
+      setClipboardDatas: (clipboardDatas: ClipboardData[]) => void
       hideMainWindow: () => void
-      paste: (creationTime: number, type: string) => void
+      paste: (clipboardData: ClipboardData) => void
       updatePageData: (
-        callback: (
-          event: Electron.IpcRendererEvent,
-          dataList: Record<string, string | number>[]
-        ) => void
+        callback: (event: Electron.IpcRendererEvent, dataList: ClipboardData[]) => void
       ) => void
     }
   }

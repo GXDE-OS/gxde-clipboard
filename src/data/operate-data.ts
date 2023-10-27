@@ -9,16 +9,12 @@ export async function getClipDataList(searchString?: string) {
     return dataList
   }
 }
-export async function getClipContent(creationTime: number) {
-  const dataList = JSON.parse((await fs.readFile('src/data/clipboard-datas.json', 'utf-8')) || '[]')
-  return dataList.find((item: { creationTime: number }) => item.creationTime === creationTime)
-    .content
-}
 
-export async function addClipData(data) {
+export async function addClipData(clipboardData: ClipboardData) {
   const dataList = JSON.parse((await fs.readFile('src/data/clipboard-datas.json', 'utf-8')) || '[]')
-  if (dataList[0]?.type === data.type && dataList[0]?.content === data.content) return
-  dataList.unshift(data)
+  if (dataList[0]?.type === clipboardData.type && dataList[0]?.content === clipboardData.content)
+    return
+  dataList.unshift(clipboardData)
   await fs.writeFile('src/data/clipboard-datas.json', JSON.stringify(dataList, null, 4))
 }
 
@@ -31,11 +27,11 @@ export async function deleteOneData(creationTime: number) {
   await fs.writeFile('src/data/clipboard-datas.json', JSON.stringify(dataList, null, 4))
 }
 
-export async function setClipboardDatas(clipboardDatas) {
+export async function setClipboardDatas(clipboardDatas: ClipboardData[]) {
   await fs.writeFile('src/data/clipboard-datas.json', JSON.stringify(clipboardDatas, null, 4))
 }
 
-export async function changeOneData(clipboardData) {
+export async function changeOneData(clipboardData: ClipboardData) {
   const dataList = await getClipDataList()
   Object.assign(
     dataList.find(({ creationTime }) => creationTime === clipboardData.creationTime),

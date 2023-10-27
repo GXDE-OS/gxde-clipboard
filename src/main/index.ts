@@ -19,7 +19,6 @@ import {
   getClipDataList,
   deleteOneData,
   setClipboardDatas,
-  getClipContent,
   changeOneData
 } from '../data/operate-data'
 
@@ -71,8 +70,9 @@ function createWindow(): void {
         type: 'image',
         content: dataUrl,
         creationTime: new Date().getTime(),
-        state: 'unlocked',
-        color: ''
+        state: '',
+        color: '',
+        order: 0
       })
     } else if (availableFormats.includes('text/plain')) {
       const text = clipboard.readText()
@@ -81,8 +81,9 @@ function createWindow(): void {
           type: 'text',
           content: text,
           creationTime: new Date().getTime(),
-          state: 'unlocked',
-          color: ''
+          state: '',
+          color: '',
+          order: 0
         })
       }
     }
@@ -104,9 +105,9 @@ function createWindow(): void {
     async (_, clipboardDatas) => await setClipboardDatas(clipboardDatas)
   )
   ipcMain.handle('hideMainWindow', async () => mainWindow.minimize())
-  ipcMain.handle('paste', async (_, creationTime, type) => {
+  ipcMain.handle('paste', async (_, clipboardData) => {
     mainWindow.minimize()
-    const content = await getClipContent(creationTime)
+    const { content, type } = clipboardData
     disabled = true
     if (type === 'text') {
       clipboard.writeText(content)

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch, nextTick, toRaw } from 'vue'
+import { ref, reactive, onMounted, watch, computed, nextTick, toRaw } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -8,6 +8,7 @@ const searchString = ref('')
 const showSearchInput = ref(false) // 是否显示搜索框
 const deleteConfirmVisible = ref(false) // 清空确认框
 const searchInput = ref() // 获得搜索框dom
+const scrollbarRef = ref() // 滚动条dom
 const clipboardDatas: ClipboardData[] = reactive([])
 const previewIconVisibilityList: boolean[] = reactive([])
 const markMap = reactive(new Map()) // 记录标记信息
@@ -165,10 +166,10 @@ function setMarkMap() {
       ) {
         markMap.set(creationTime, count++)
       } else {
-        markMap.set(creationTime, null)
+        markMap.set(creationTime, '') // 表示在视口外
       }
     } else {
-      markMap.set(creationTime, null)
+      markMap.set(creationTime, null) // null表述display为none
     }
   })
 }
@@ -268,24 +269,40 @@ function handleSearchInputKeyUp(e: KeyboardEvent) {
   }
 }
 
-function scrollToTop() {
-  if (!clipboardDatas.length) return
-  const creationTime = [...markMap].at(0)?.[0]
-  if (creationTime) {
-    document
-      .querySelector(`.clipboard-item[data-creation-time="${creationTime}"]`)
-      ?.scrollIntoView({ behavior: 'smooth' })
+const showArrowUp = computed(() => {
+  let result = false
+  for (const item of markMap) {
+    if (item[1]) {
+      result = false
+      break
+    } else if (item[1] === '') {
+      result = true
+      break
+    }
   }
+  return result
+})
+
+const showArrowDown = computed(() => {
+  let result = false
+  for (const item of [...markMap].reverse()) {
+    if (item[1]) {
+      result = false
+      break
+    } else if (item[1] === '') {
+      result = true
+      break
+    }
+  }
+  return result
+})
+
+function scrollToTop() {
+  scrollbarRef.value!.setScrollTop(0)
 }
 
 function scrollToBottom() {
-  if (!clipboardDatas.length) return
-  const creationTime = [...markMap].at(-1)?.[0]
-  if (creationTime) {
-    document
-      .querySelector(`.clipboard-item[data-creation-time="${creationTime}"]`)
-      ?.scrollIntoView({ behavior: 'smooth' })
-  }
+  scrollbarRef.value!.setScrollTop(window.innerHeight)
 }
 
 window.api.updatePageData((_, dataList) => {
@@ -325,18 +342,10 @@ function bodyFocus() {
           </div>
         </el-popover>
         <span>
-          <el-icon
-            v-show="markMap.size && ![...markMap].at(0)?.[1]"
-            title="顶部 (Home)"
-            @click="scrollToTop"
-          >
+          <el-icon v-show="showArrowUp" title="顶部 (Home)" @click="scrollToTop">
             <ArrowUp />
           </el-icon>
-          <el-icon
-            v-show="markMap.size && ![...markMap].at(-1)?.[1]"
-            title="底部 (End)"
-            @click="scrollToBottom"
-          >
+          <el-icon v-show="showArrowDown" title="底部 (End)" @click="scrollToBottom">
             <ArrowDown />
           </el-icon>
           <el-popconfirm
@@ -400,7 +409,11 @@ function bodyFocus() {
       id="body"
       :style="{ height: `calc(100vh - ${showSearchInput ? 87 : 55}px)` }"
     >
-      <el-scrollbar wrap-class="scroll-bar-wrap-class" view-class="scroll-bar-view-class">
+      <el-scrollbar
+        ref="scrollbarRef"
+        wrap-class="scroll-bar-wrap-class"
+        view-class="scroll-bar-view-class"
+      >
         <div
           v-for="(clipboardData, index) of clipboardDatas"
           v-show="nodeVisible(clipboardData)"
@@ -500,7 +513,16 @@ function bodyFocus() {
             />
           </div>
           <div class="footer">
-            <div :title="`键${markMap.get(clipboardData.creationTime)}直接上屏`">
+            <div
+              :title="
+                markMap.get(clipboardData.creationTime) >= 1 &&
+                markMap.get(clipboardData.creationTime) <= 9
+                  ? `键${searchString ? 'Ctrl + ' : ''}${markMap.get(
+                      clipboardData.creationTime
+                    )}直接上屏`
+                  : ''
+              "
+            >
               {{ markMap.get(clipboardData.creationTime) }}
             </div>
             <el-popover placement="bottom-end" width="280">
@@ -546,6 +568,10 @@ function bodyFocus() {
     justify-content: space-between;
     align-items: center;
     line-height: 35px;
+    -webkit-app-region: drag;
+    > * {
+      -webkit-app-region: no-drag;
+    }
 
     span > i {
       cursor: pointer;

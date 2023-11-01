@@ -302,7 +302,8 @@ function scrollToTop() {
 }
 
 function scrollToBottom() {
-  scrollbarRef.value!.setScrollTop(window.innerHeight)
+  const scrollHeight = document.querySelector('.scroll-bar-view-class')!.scrollHeight
+  scrollbarRef.value!.setScrollTop(scrollHeight)
 }
 
 window.api.updatePageData((_, dataList) => {

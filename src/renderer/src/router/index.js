@@ -1,10 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import MainWindow from '../components/MainWindow.vue'
-import Settings from '../components/Settings.vue'
 
 const routes = [
-  { path: '/', component: MainWindow },
-  { path: '/settings', component: Settings }
+  { path: '/', component: () => import('../components/MainWindow.vue') },
+  { path: '/settings', component: () => import('../components/Settings.vue') }
 ]
 
 export default createRouter({

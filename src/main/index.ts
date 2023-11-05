@@ -1,6 +1,5 @@
 import {
   app,
-  shell,
   BrowserWindow,
   Tray,
   screen,
@@ -120,17 +119,28 @@ function createWindow(): void {
     disabled = false
   })
 
-  // 失去焦点就隐藏窗口
-  mainWindow.on('blur', () => {
-    mainWindow.minimize()
-  })
-
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
 
+  // 拦截window.open(),设置弹出窗口的属性
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+    if (details.url) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          frame: false,
+          transparent: true,
+          resizable: true,
+          alwaysOnTop: true,
+          type: 'toolbar', // 不显示任务栏窗口
+          focusable: false,
+          webPreferences: {
+            preload: join(__dirname, '../preload/index.js')
+          }
+        }
+      }
+    }
     return { action: 'deny' }
   })
 

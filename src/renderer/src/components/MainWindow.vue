@@ -10,7 +10,7 @@ const deleteConfirmVisible = ref(false) // 清空确认框
 const searchInput = ref() // 获得搜索框dom
 const scrollbarRef = ref() // 滚动条dom
 const clipboardDatas: ClipboardData[] = reactive([])
-const previewIconVisibilityList: boolean[] = reactive([])
+const detailsWindow = ref()
 const markMap = reactive(new Map()) // 记录标记信息
 const deleteWhich = ref('all') // 'all' | 'normal'
 const colorList = reactive([
@@ -26,31 +26,16 @@ const currentColor = ref('')
 
 onMounted(async () => {
   clipboardDatas.push(...(await window.api.getClipDataList()))
-  addScrollendEvent()
-  addWheelEvent()
-  addKeyUpEvent()
+  addScrollEvent()
+  windowAddEventListener()
 })
-
-watch(
-  () => clipboardDatas.map((i) => i.content),
-  () => {
-    nextTick(() => {
-      previewIconVisibilityList.length = clipboardDatas.length
-      void [...document.querySelectorAll('.clipboard-item .content')].forEach(
-        (dom: { scrollHeight: number; clientHeight: number }, index) => {
-          previewIconVisibilityList[index] = dom.scrollHeight > dom.clientHeight
-        }
-      )
-    })
-  }
-)
 
 watch([searchString, currentColor, clipboardDatas], () => {
   bodyFocus()
   nextTick(setMarkMap)
 })
 
-function changeOneData(clipboardData, field, value) {
+function changeOneData(clipboardData: ClipboardData, field: string, value: string | number) {
   clipboardData[field] = value
   window.api.changeOneData(toRaw(clipboardData))
 }
@@ -71,17 +56,17 @@ function setClipboardDatas() {
   window.api.setClipboardDatas(toRaw(clipboardDatas))
 }
 
-function paste(clipboardData) {
+function paste(clipboardData: ClipboardData) {
   window.api.paste(toRaw(clipboardData))
 }
 
-function top(clipboardData) {
+function top(clipboardData: ClipboardData) {
   const minOrder = Math.min(...clipboardDatas.map(({ order }) => order))
   clipboardData.order = minOrder - 1
   changeOneData(clipboardData, 'order', clipboardData.order)
 }
 
-function nodeVisible(clipboardData) {
+function nodeVisible(clipboardData: ClipboardData) {
   if (searchString.value) {
     if (clipboardData.type === 'text') {
       return (
@@ -125,22 +110,10 @@ function highlightSearchString(content: string) {
   return content
 }
 
-function addScrollendEvent() {
-  document.querySelector('#body .scroll-bar-wrap-class')?.addEventListener('scrollend', setMarkMap)
-}
-
-function addWheelEvent() {
-  // 调节透明度
-  addEventListener('wheel', (e) => {
-    if (e.ctrlKey) {
-      if (
-        transparency.value + e.deltaY * 0.001 >= 0 &&
-        transparency.value + e.deltaY * 0.001 <= 1
-      ) {
-        transparency.value += e.deltaY * 0.001
-      }
-    }
-  })
+function addScrollEvent() {
+  const scrollBar = document.querySelector('#body .scroll-bar-wrap-class')!
+  scrollBar.addEventListener('scroll', closeDetailsWindow)
+  scrollBar.addEventListener('scrollend', setMarkMap)
 }
 
 function setMarkMap() {
@@ -196,10 +169,81 @@ function deltaTime(creationTime: number) {
   }
 }
 
-function addKeyUpEvent() {
+function closeDetailsWindow() {
+  detailsWindow.value?.close()
+  detailsWindow.value = null
+}
+
+function getContentSize(clipboardData: ClipboardData) {
+  const pre = document.createElement('pre')
+  pre.innerText = clipboardData.content
+  document.body.appendChild(pre)
+  const { scrollWidth, scrollHeight } = pre
+  document.body.removeChild(pre)
+  return { scrollWidth, scrollHeight }
+}
+
+function handleViewIconClick(path: string, clipboardData: ClipboardData, event: MouseEvent) {
+  // 点击同一个预览图标时,隐藏已显示的详情窗口
+  if (
+    detailsWindow.value &&
+    detailsWindow.value.location.hash.match(/creationTime=(\d+)$/)?.[1] ===
+      String(clipboardData.creationTime)
+  ) {
+    closeDetailsWindow()
+    return
+  }
+
+  const { screenX, clientX } = event // 点击处离窗口左上角的距离
+  const { availWidth, availHeight } = window.screen // 屏幕可用的宽度和高度(不包括任务栏)
+  const { top, bottom } = document
+    .querySelector(`.clipboard-item[data-creation-time="${clipboardData.creationTime}"]`)!
+    .getBoundingClientRect()
+  // 详情窗口允许的最大宽高
+  const maxWidth =
+    Math.max(screenX - clientX, availWidth - (screenX - clientX + window.innerWidth)) - 10 // 10为与屏幕的最小间距
+  const maxHeight = Math.max(availHeight - top, bottom) - 10
+  const { scrollWidth, scrollHeight } = getContentSize(clipboardData) // pre内容区的宽高
+  const width = Math.min(maxWidth, scrollWidth + 20) // 20和35为详情窗口内pre与窗口的间距
+  const height = Math.min(maxHeight, Math.max(scrollHeight + 35, bottom - top))
+  const x =
+    screenX - clientX + window.innerWidth + width > availWidth
+      ? screenX - clientX - width
+      : screenX - clientX + window.innerWidth
+  const y = top + height > availHeight ? bottom - height : top
+  const url = `#/${path}?creationTime=${clipboardData.creationTime}`
+
+  if (!detailsWindow.value) {
+    // 没显示详情窗口,则打开
+    detailsWindow.value = window.open(url, path, `width=${width},height=${height},x=${x},y=${y}`)
+  } else {
+    // 表示打开了详情窗口,需要修改url和坐标
+    detailsWindow.value.location.replace(url)
+    detailsWindow.value.moveTo(x, y)
+  }
+}
+
+function windowAddEventListener() {
+  // 滚轮调节透明度
+  window.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) {
+      if (
+        transparency.value + e.deltaY * 0.001 >= 0 &&
+        transparency.value + e.deltaY * 0.001 <= 1
+      ) {
+        transparency.value += e.deltaY * 0.001
+      }
+    }
+  })
+
+  // 失去焦点时隐藏窗口
+  window.addEventListener('blur', () => {
+    window.api.hideMainWindow()
+  })
+
+  // 设置操作快捷键
   window.addEventListener('keyup', (e: KeyboardEvent) => {
     console.log(e.key)
-    if ((e.target as HTMLElement).tagName !== 'BODY') return
     if (e.key.match(/^\d$/)) {
       let creationTime: number | undefined
       for (const [key, value] of markMap) {
@@ -209,7 +253,7 @@ function addKeyUpEvent() {
         }
       }
       if (creationTime) {
-        const clipboardData = clipboardDatas.find((i) => i.creationTime === creationTime)
+        const clipboardData = clipboardDatas.find((i) => i.creationTime === creationTime)!
         paste(clipboardData)
       }
     } else if (e.ctrlKey && e.key === 'f') {
@@ -246,7 +290,12 @@ function addKeyUpEvent() {
     } else if (e.key === 'End') {
       scrollToBottom()
     } else if (e.key === 'Escape') {
-      window.api.hideMainWindow()
+      // 如果显示了详情窗口,则关闭详情窗口,否则关闭主窗口
+      if (detailsWindow.value) {
+        closeDetailsWindow()
+      } else {
+        window.api.hideMainWindow()
+      }
     }
   })
 }
@@ -263,7 +312,7 @@ function handleSearchInputKeyUp(e: KeyboardEvent) {
       }
     }
     if (creationTime) {
-      const clipboardData = clipboardDatas.find((i) => i.creationTime === creationTime)
+      const clipboardData = clipboardDatas.find((i) => i.creationTime === creationTime)!
       paste(clipboardData)
     }
   }
@@ -325,7 +374,7 @@ function bodyFocus() {
             <b
               id="title"
               :style="{ color: currentColor || '#000000' }"
-              title="单击设置标记(右键取消标记)"
+              title="单击进行标记过滤(右键取消标记)"
               @click.right="currentColor = ''"
               >剪贴板</b
             >
@@ -342,6 +391,7 @@ function bodyFocus() {
             ></div>
           </div>
         </el-popover>
+        <div v-show="!detailsWindow" id="move"></div>
         <span>
           <el-icon v-show="showArrowUp" title="顶部 (Home)" @click="scrollToTop">
             <ArrowUp />
@@ -416,7 +466,7 @@ function bodyFocus() {
         view-class="scroll-bar-view-class"
       >
         <div
-          v-for="(clipboardData, index) of clipboardDatas"
+          v-for="clipboardData of clipboardDatas"
           v-show="nodeVisible(clipboardData)"
           :key="clipboardData.creationTime"
           :data-creation-time="clipboardData.creationTime"
@@ -438,7 +488,7 @@ function bodyFocus() {
                       color: clipboardData.color || '#000000',
                       cursor: 'pointer'
                     }"
-                    title="右键取消标记"
+                    title="单击添加标记(右键取消标记)"
                     @click.right="changeOneData(clipboardData, 'color', '')"
                     >{{ { text: '文本', image: '图片' }[clipboardData.type] }}</b
                   >
@@ -481,12 +531,6 @@ function bodyFocus() {
               {{ deltaTime(clipboardData.creationTime) }}
             </div>
             <div>
-              <!-- <el-icon v-if="clipboardData.type == 'text'" title="编辑">
-                <EditPen />
-              </el-icon>
-              <el-icon v-if="clipboardData.type == 'image'" title="预览">
-                <View />
-              </el-icon> -->
               <el-icon
                 v-show="clipboardData.state === ''"
                 title="锁定"
@@ -526,16 +570,14 @@ function bodyFocus() {
             >
               {{ markMap.get(clipboardData.creationTime) }}
             </div>
-            <el-popover placement="bottom-end" width="280">
-              <template #reference>
-                <el-icon v-show="previewIconVisibilityList[index]" title="预览">
-                  <View />
-                </el-icon>
-              </template>
-              <el-scrollbar max-height="50vh" view-class="preview-scrollbar" always>
-                <pre>{{ clipboardData.content }}</pre>
-              </el-scrollbar>
-            </el-popover>
+            <el-icon
+              title="详情"
+              tabindex="-1"
+              @blur="closeDetailsWindow"
+              @click="handleViewIconClick('details', clipboardData, $event)"
+            >
+              <View />
+            </el-icon>
           </div>
         </div>
       </el-scrollbar>
@@ -568,10 +610,12 @@ function bodyFocus() {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    line-height: 35px;
-    -webkit-app-region: drag;
-    > * {
-      -webkit-app-region: no-drag;
+    height: 35px;
+
+    #move {
+      flex-grow: 1;
+      height: 100%;
+      -webkit-app-region: drag;
     }
 
     span > i {
@@ -622,7 +666,8 @@ function bodyFocus() {
 
       .footer {
         i {
-          visibility: visible;
+          opacity: 1;
+          outline-style: none;
         }
       }
     }
@@ -706,15 +751,12 @@ function bodyFocus() {
 
       i {
         cursor: pointer;
-        visibility: hidden;
+        opacity: 0;
       }
     }
   }
 }
 
-.preview-scrollbar pre {
-  margin: 5px;
-}
 .color {
   display: flex;
   justify-content: space-between;

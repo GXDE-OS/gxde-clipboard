@@ -176,16 +176,33 @@ function closeDetailsWindow() {
   detailsWindow.value = null
 }
 
-function getContentSize(clipboardData: ClipboardData) {
-  const html = hljs.highlightAuto(clipboardData.content).value
-  const highline = document.querySelector('#highline')!
-  highline.innerHTML = html
-  const { scrollWidth, scrollHeight } = highline
-  highline.innerHTML = ''
-  return { scrollWidth, scrollHeight }
+async function getContentSize(
+  clipboardData: ClipboardData
+): Promise<{ contentWidth: number; contentHeight: number }> {
+  const details = document.querySelector('#details')!
+  if (clipboardData.type === 'text') {
+    // 如果包含特殊字符,就高亮处理,否则当作纯文本
+    if (clipboardData.content.search(/[[\]{}<>=]/g) !== -1) {
+      const html = hljs.highlightAuto(clipboardData.content).value
+      details.innerHTML = html
+    } else {
+      details.innerHTML = clipboardData.content
+    }
+    const { scrollWidth, scrollHeight } = details
+    details.innerHTML = ''
+    return { contentWidth: scrollWidth, contentHeight: scrollHeight }
+  } else {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.src = clipboardData.content
+      img.onload = function () {
+        resolve({ contentWidth: img.width, contentHeight: img.height + 10 })
+      }
+    })
+  }
 }
 
-function handleViewIconClick(path: string, clipboardData: ClipboardData, event: MouseEvent) {
+async function handleViewIconClick(path: string, clipboardData: ClipboardData, event: MouseEvent) {
   // 点击同一个预览图标时,隐藏已显示的详情窗口
   if (
     detailsWindow.value &&
@@ -196,23 +213,28 @@ function handleViewIconClick(path: string, clipboardData: ClipboardData, event: 
     return
   }
 
-  const { screenX, clientX } = event // 点击处离窗口左上角的距离
+  const { screenX, screenY, clientX, clientY } = event // 点击处离窗口左上角的距离
+  // 主窗口左上角坐标
+  const mainWindowX = screenX - clientX
+  const mainWindowY = screenY - clientY
   const { availWidth, availHeight } = window.screen // 屏幕可用的宽度和高度(不包括任务栏)
   const { top, bottom } = document
     .querySelector(`.clipboard-item[data-creation-time="${clipboardData.creationTime}"]`)!
     .getBoundingClientRect()
   // 详情窗口允许的最大宽高
-  const maxWidth =
-    Math.max(screenX - clientX, availWidth - (screenX - clientX + window.innerWidth)) - 10 // 10为与屏幕的最小间距
-  const maxHeight = Math.max(availHeight - top, bottom) - 10
-  const { scrollWidth, scrollHeight } = getContentSize(clipboardData) // pre内容区的宽高
-  const width = Math.min(maxWidth, Math.max(scrollWidth + 30, 200)) // 30为详情窗口内pre与窗口的间距
-  const height = Math.min(maxHeight, Math.max(scrollHeight + 30, bottom - top + 10))
+  const maxWidth = Math.max(mainWindowX, availWidth - (mainWindowX + window.innerWidth))
+  const maxHeight = Math.max(availHeight - (top + mainWindowY), bottom)
+  const { contentWidth, contentHeight } = await getContentSize(clipboardData) // pre内容区的宽高
+  const width = Math.min(maxWidth, Math.max(contentWidth + 30, 200)) // 30为详情窗口内pre与窗口的间距
+  const height = Math.min(maxHeight, Math.max(contentHeight + 30, bottom - top + 10))
   const x =
-    screenX - clientX + window.innerWidth + width > availWidth
-      ? screenX - clientX - width
-      : screenX - clientX + window.innerWidth
-  const y = top + height > availHeight ? bottom - height : top
+    mainWindowX + window.innerWidth + width > availWidth
+      ? mainWindowX - width + 5
+      : mainWindowX + window.innerWidth - 5
+  const y =
+    top + mainWindowY + height > availHeight
+      ? bottom + mainWindowY - height + 5
+      : top + mainWindowY - 5
   const url = `#/${path}?creationTime=${clipboardData.creationTime}`
 
   if (!detailsWindow.value) {
@@ -544,7 +566,7 @@ function bodyFocus() {
                 <Top />
               </el-icon>
               <el-icon title="删除" @click="deleteOneData(clipboardData.creationTime)">
-                <Close />
+                <Delete />
               </el-icon>
             </div>
           </div>
@@ -589,7 +611,7 @@ function bodyFocus() {
       :style="{ height: `calc(100vh - ${showSearchInput ? 87 : 55}px)` }"
       description="无数据"
     />
-    <pre id="highline"></pre>
+    <pre id="details"></pre>
   </div>
 </template>
 
@@ -682,6 +704,10 @@ function bodyFocus() {
       padding: 3px 10px;
       user-select: none;
 
+      i {
+        cursor: pointer;
+      }
+
       > div:first-child {
         display: flex;
         align-items: center;
@@ -700,6 +726,7 @@ function bodyFocus() {
           padding: 1px 3px;
           border-radius: 4px;
           margin-left: 2px;
+          cursor: pointer;
         }
       }
 
@@ -715,7 +742,6 @@ function bodyFocus() {
 
         i {
           margin-left: 5px;
-          cursor: pointer;
         }
       }
     }
@@ -760,7 +786,7 @@ function bodyFocus() {
   }
 }
 
-#highline {
+#details {
   height: 0;
   width: 0;
   overflow: hidden;

@@ -12,17 +12,35 @@ onMounted(async () => {
   clipboardData.value = (await window.api.getClipDataList()).find(
     (i) => i.creationTime === creationTime
   )
-  const html = hljs.highlightAuto(clipboardData.value.content).value
-  const highline = document.querySelector('#highline')!
-  highline.innerHTML = html
+  const details = document.querySelector('#details')!
+  if (clipboardData.value.type === 'text') {
+    if (clipboardData.value.content.search(/[[\]{}<>=]/g) !== -1) {
+      const html = hljs.highlightAuto(clipboardData.value.content).value
+      details.innerHTML = html
+    } else {
+      details.innerHTML = clipboardData.value.content
+    }
+  } else {
+    const img = document.createElement('img')
+    img.src = clipboardData.value.content
+    details.appendChild(img)
+  }
 })
+
+function closeDetailsWindow() {
+  window.close()
+}
 </script>
 
 <template>
   <div id="wrapper">
-    <div id="head"></div>
+    <div id="head">
+      <div id="icon">
+        <el-icon title="关闭" @click="closeDetailsWindow"><Close /></el-icon>
+      </div>
+    </div>
     <el-scrollbar id="scrollbar">
-      <pre id="highline"></pre>
+      <pre id="details"></pre>
     </el-scrollbar>
   </div>
 </template>
@@ -40,7 +58,17 @@ onMounted(async () => {
   }
 
   #head {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
     height: 20px;
+    padding: 0 5px;
+    font-size: 12px;
+
+    i {
+      margin-left: 5px;
+      cursor: pointer;
+    }
   }
 
   #scrollbar {

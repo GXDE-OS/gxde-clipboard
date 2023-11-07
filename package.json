@@ -43,6 +43,7 @@
     "electron-vite": "^1.0.28",
     "eslint": "^8.52.0",
     "eslint-plugin-vue": "^9.18.1",
+    "highlight.js": "^11.9.0",
     "less": "^4.2.0",
     "prettier": "^3.0.3",
     "typescript": "^5.2.2",

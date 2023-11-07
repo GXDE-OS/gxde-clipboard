@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch, computed, nextTick, toRaw } from 'vue'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github.css'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -175,11 +177,11 @@ function closeDetailsWindow() {
 }
 
 function getContentSize(clipboardData: ClipboardData) {
-  const pre = document.createElement('pre')
-  pre.innerText = clipboardData.content
-  document.body.appendChild(pre)
-  const { scrollWidth, scrollHeight } = pre
-  document.body.removeChild(pre)
+  const html = hljs.highlightAuto(clipboardData.content).value
+  const highline = document.querySelector('#highline')!
+  highline.innerHTML = html
+  const { scrollWidth, scrollHeight } = highline
+  highline.innerHTML = ''
   return { scrollWidth, scrollHeight }
 }
 
@@ -204,8 +206,8 @@ function handleViewIconClick(path: string, clipboardData: ClipboardData, event: 
     Math.max(screenX - clientX, availWidth - (screenX - clientX + window.innerWidth)) - 10 // 10为与屏幕的最小间距
   const maxHeight = Math.max(availHeight - top, bottom) - 10
   const { scrollWidth, scrollHeight } = getContentSize(clipboardData) // pre内容区的宽高
-  const width = Math.min(maxWidth, scrollWidth + 20) // 20和35为详情窗口内pre与窗口的间距
-  const height = Math.min(maxHeight, Math.max(scrollHeight + 35, bottom - top))
+  const width = Math.min(maxWidth, Math.max(scrollWidth + 30, 200)) // 30为详情窗口内pre与窗口的间距
+  const height = Math.min(maxHeight, Math.max(scrollHeight + 30, bottom - top + 10))
   const x =
     screenX - clientX + window.innerWidth + width > availWidth
       ? screenX - clientX - width
@@ -587,6 +589,7 @@ function bodyFocus() {
       :style="{ height: `calc(100vh - ${showSearchInput ? 87 : 55}px)` }"
       description="无数据"
     />
+    <pre id="highline"></pre>
   </div>
 </template>
 
@@ -755,6 +758,12 @@ function bodyFocus() {
       }
     }
   }
+}
+
+#highline {
+  height: 0;
+  width: 0;
+  overflow: hidden;
 }
 
 .color {

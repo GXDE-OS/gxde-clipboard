@@ -12,7 +12,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import clipboardListener from 'clipboard-event'
 import { keyboard, Key /* mouse */ } from '@nut-tree/nut-js'
-import icon from '../../resources/icon.ico?asset'
+import icon from '../../resources/icon.png?asset'
 import {
   addClipData,
   getClipDataList,

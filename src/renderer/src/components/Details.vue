@@ -21,7 +21,8 @@ onMounted(async () => {
       details.innerHTML = clipboardData.value.content
     }
   } else {
-    const img = document.createElement('img')
+    const img = new Image()
+    img.style.width = '100%'
     img.src = clipboardData.value.content
     details.appendChild(img)
   }
@@ -52,10 +53,6 @@ function closeDetailsWindow() {
   background-color: rgba(246, 246, 246, 1);
   box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
   overflow: hidden;
-  opacity: 0.7;
-  &:hover {
-    opacity: 0.9;
-  }
 
   #head {
     display: flex;

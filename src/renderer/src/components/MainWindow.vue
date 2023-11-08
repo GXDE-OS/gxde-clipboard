@@ -761,8 +761,14 @@ function bodyFocus() {
           border-radius: 3px;
         }
       }
+
+      &:has(img) {
+        display: flex;
+        justify-content: center;
+      }
+
       img {
-        width: 100%;
+        max-width: 100%;
         max-height: 100px;
         object-fit: scale-down;
       }

@@ -95,6 +95,15 @@ function createWindow(): void {
       mainWindow.show()
     })
   }
+  // shift+ctrl+c只复制内容到系统剪贴板,不记录到软件
+  if (!globalShortcut.isRegistered('Shift+CommandOrControl+C')) {
+    globalShortcut.register('Shift+CommandOrControl+C', async () => {
+      disabled = true
+      await keyboard.pressKey(Key.LeftControl, Key.C)
+      await keyboard.releaseKey(Key.LeftControl, Key.C)
+      disabled = false
+    })
+  }
 
   ipcMain.handle('getClipDataList', async (_, searchString) => await getClipDataList(searchString))
   ipcMain.handle('changeOneData', async (_, clipboardData) => await changeOneData(clipboardData))
@@ -105,7 +114,6 @@ function createWindow(): void {
   )
   ipcMain.handle('hideMainWindow', async () => mainWindow.minimize())
   ipcMain.handle('paste', async (_, clipboardData) => {
-    mainWindow.minimize()
     const { content, type } = clipboardData
     disabled = true
     if (type === 'text') {

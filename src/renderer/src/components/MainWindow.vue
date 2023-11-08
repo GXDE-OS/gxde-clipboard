@@ -60,6 +60,7 @@ function setClipboardDatas() {
 
 function paste(clipboardData: ClipboardData) {
   window.api.paste(toRaw(clipboardData))
+  window.api.hideMainWindow()
 }
 
 function top(clipboardData: ClipboardData) {
@@ -381,6 +382,7 @@ function scrollToBottom() {
 
 window.api.updatePageData((_, dataList) => {
   clipboardDatas.splice(0, Infinity, ...dataList)
+  scrollToTop()
 })
 
 // 使popover失去焦点

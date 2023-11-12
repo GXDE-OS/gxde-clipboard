@@ -177,27 +177,31 @@ function closeDetailsWindow() {
   detailsWindow.value = null
 }
 
-async function getContentSize(
+async function getContentInfo(
   clipboardData: ClipboardData
-): Promise<{ contentWidth: number; contentHeight: number }> {
+): Promise<{ contentWidth: number; contentHeight: number; renderedHTML: string }> {
   const details = document.querySelector('#details')!
   if (clipboardData.type === 'text') {
     // 如果包含特殊字符,就高亮处理,否则当作纯文本
     if (clipboardData.content.search(/[[\]{}<>=]/g) !== -1) {
-      const html = hljs.highlightAuto(clipboardData.content).value
-      details.innerHTML = html
+      details.innerHTML = hljs.highlightAuto(clipboardData.content).value
     } else {
       details.innerHTML = clipboardData.content
     }
+    const renderedHTML = details.innerHTML
     const { scrollWidth, scrollHeight } = details
     details.innerHTML = ''
-    return { contentWidth: scrollWidth, contentHeight: scrollHeight }
+    return { contentWidth: scrollWidth, contentHeight: scrollHeight, renderedHTML }
   } else {
     return new Promise((resolve) => {
       const img = new Image()
       img.src = clipboardData.content
       img.onload = function () {
-        resolve({ contentWidth: img.width, contentHeight: img.height + 10 })
+        resolve({
+          contentWidth: img.width,
+          contentHeight: img.height + 10,
+          renderedHTML: img.outerHTML
+        })
       }
     })
   }
@@ -225,7 +229,7 @@ async function handleViewIconClick(path: string, clipboardData: ClipboardData, e
   // 详情窗口允许的最大宽高
   const maxWidth = Math.max(mainWindowX, availWidth - (mainWindowX + window.innerWidth))
   const maxHeight = Math.max(availHeight - (top + mainWindowY), bottom)
-  const { contentWidth, contentHeight } = await getContentSize(clipboardData) // pre内容区的宽高
+  const { contentWidth, contentHeight, renderedHTML } = await getContentInfo(clipboardData) // pre内容区的宽高
   const width = Math.min(maxWidth, Math.max(contentWidth + 30, 200)) // 30为详情窗口内pre与窗口的间距
   const height = Math.min(maxHeight, Math.max(contentHeight + 30, bottom - top + 10))
   const x =
@@ -236,19 +240,23 @@ async function handleViewIconClick(path: string, clipboardData: ClipboardData, e
     top + mainWindowY + height > availHeight
       ? bottom + mainWindowY - height + 5
       : top + mainWindowY - 5
-  const url = `#/${path}?creationTime=${clipboardData.creationTime}`
 
-  if (!detailsWindow.value) {
-    // 没显示详情窗口,则打开
-    detailsWindow.value = window.open(url, path, `width=${width},height=${height},x=${x},y=${y}`)
-  } else {
-    // 表示打开了详情窗口,需要修改url和坐标
-    detailsWindow.value.location.replace(url)
-    detailsWindow.value.moveTo(x, y)
-  }
+  window.sessionStorage.setItem('clipboardData', JSON.stringify(clipboardData))
+  window.sessionStorage.setItem('highlineHTML', renderedHTML)
+  detailsWindow.value = window.open(
+    `#/${path}`,
+    path,
+    `width=${width},height=${height},x=${x},y=${y}`
+  )
 }
 
 function windowAddEventListener() {
+  window.addEventListener('message', ({ data }) => {
+    if (data.type === 'closeDetailsWindow') {
+      closeDetailsWindow()
+    }
+  })
+
   // 滚轮调节透明度
   window.addEventListener('wheel', (e) => {
     if (e.ctrlKey) {
@@ -372,12 +380,12 @@ const showArrowDown = computed(() => {
 })
 
 function scrollToTop() {
-  scrollbarRef.value!.setScrollTop(0)
+  scrollbarRef.value!.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function scrollToBottom() {
   const scrollHeight = document.querySelector('.scroll-bar-view-class')!.scrollHeight
-  scrollbarRef.value!.setScrollTop(scrollHeight)
+  scrollbarRef.value!.scrollTo({ top: scrollHeight, behavior: 'smooth' })
 }
 
 window.api.updatePageData((_, dataList) => {
@@ -752,12 +760,12 @@ function bodyFocus() {
       background-color: rgba(255, 255, 255, 0.6);
       padding: 5px 10px;
       cursor: pointer;
-      overflow: hidden;
       p {
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 3;
         word-wrap: anywhere;
+        overflow: hidden;
         span {
           background-color: #ff8000;
           border-radius: 3px;

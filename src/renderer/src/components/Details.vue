@@ -1,35 +1,22 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
-import { useRoute } from 'vue-router'
 
-const route = useRoute()
-const creationTime = Number(route.query.creationTime)
-const clipboardData = ref()
+const clipboardData = ref<ClipboardData | null>(null)
 
 onMounted(async () => {
-  clipboardData.value = (await window.api.getClipDataList()).find(
-    (i) => i.creationTime === creationTime
-  )
   const details = document.querySelector('#details')!
-  if (clipboardData.value.type === 'text') {
-    if (clipboardData.value.content.search(/[[\]{}<>=]/g) !== -1) {
-      const html = hljs.highlightAuto(clipboardData.value.content).value
-      details.innerHTML = html
-    } else {
-      details.innerHTML = clipboardData.value.content
-    }
-  } else {
-    const img = new Image()
-    img.style.width = '100%'
-    img.src = clipboardData.value.content
-    details.appendChild(img)
-  }
+  details.innerHTML = window.sessionStorage.getItem('highlineHTML')!
+  clipboardData.value = JSON.parse(window.sessionStorage.getItem('clipboardData')!) as ClipboardData
 })
 
 function closeDetailsWindow() {
-  window.close()
+  window.opener.postMessage(
+    {
+      type: 'closeDetailsWindow'
+    },
+    '*'
+  )
 }
 </script>
 

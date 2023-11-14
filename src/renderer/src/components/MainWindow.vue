@@ -186,7 +186,7 @@ async function getContentInfo(
     if (clipboardData.content.search(/[[\]{}<>=]/g) !== -1) {
       details.innerHTML = hljs.highlightAuto(clipboardData.content).value
     } else {
-      details.innerHTML = clipboardData.content
+      details.innerHTML = hljs.highlight(clipboardData.content, { language: 'plaintext' }).value
     }
     const renderedHTML = details.innerHTML
     const { scrollWidth, scrollHeight } = details
@@ -244,7 +244,7 @@ async function handleViewIconClick(path: string, clipboardData: ClipboardData, e
   window.sessionStorage.setItem('clipboardData', JSON.stringify(clipboardData))
   window.sessionStorage.setItem('highlineHTML', renderedHTML)
   detailsWindow.value = window.open(
-    `#/${path}`,
+    `#/${path}?creationTime=${clipboardData.creationTime}`,
     path,
     `width=${width},height=${height},x=${x},y=${y}`
   )

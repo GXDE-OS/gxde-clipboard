@@ -58,6 +58,11 @@ function closeDetailsWindow() {
   #scrollbar {
     height: calc(100vh - 30px);
     padding: 0 10px;
+
+    #details:has(img) {
+      display: flex;
+      justify-content: center;
+    }
   }
 }
 </style>

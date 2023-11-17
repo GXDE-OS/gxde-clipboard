@@ -2,6 +2,7 @@ import {
   app,
   BrowserWindow,
   Tray,
+  Menu,
   screen,
   clipboard,
   ipcMain,
@@ -31,7 +32,7 @@ function createWindow(): void {
     resizable: false, // 禁止改变窗口大小
     x: width - 300, // 窗口靠右
     y: 0,
-    alwaysOnTop: false, // 是否一直显示在最上层
+    alwaysOnTop: true, // 是否一直显示在最上层
     frame: false,
     transparent: true,
     show: false,
@@ -46,13 +47,22 @@ function createWindow(): void {
 
   // 创建托盘图标
   const tray = new Tray(icon)
-  tray.setToolTip('clip')
+  tray.setToolTip('丁丁剪贴板')
   tray.on('click', function () {
     mainWindow.show()
     mainWindow.focus()
   })
   tray.on('right-click', function () {
-    mainWindow.close()
+    const template = [
+      {
+        label: '退出',
+        click: () => {
+          mainWindow.close()
+        }
+      }
+    ]
+    const contextMenu = Menu.buildFromTemplate(template)
+    tray.setContextMenu(contextMenu)
   })
 
   // 监听剪贴板变化

@@ -25,9 +25,11 @@ const colorList = reactive([
   '#6c36b1'
 ])
 const currentColor = ref('')
+const mainWindowVisible = ref(false)
 
 onMounted(async () => {
   clipboardDatas.push(...(await window.api.getClipDataList()))
+  mainWindowVisible.value = true
   addScrollEvent()
   windowAddEventListener()
 })
@@ -271,7 +273,14 @@ function windowAddEventListener() {
 
   // 失去焦点时隐藏窗口
   window.addEventListener('blur', () => {
-    window.api.hideMainWindow()
+    mainWindowVisible.value = false
+    setTimeout(() => {
+      window.api.hideMainWindow()
+    }, 300)
+  })
+
+  window.addEventListener('focus', function () {
+    mainWindowVisible.value = true
   })
 
   // 设置操作快捷键
@@ -400,7 +409,13 @@ function bodyFocus() {
 </script>
 
 <template>
-  <div id="wrapper" :style="{ '--transparency': transparency }">
+  <div
+    id="wrapper"
+    :style="{
+      '--transparency': transparency,
+      transform: `translateX(${mainWindowVisible ? 0 : 300}px)`
+    }"
+  >
     <div id="head">
       <div>
         <el-popover placement="bottom-end" :width="200" trigger="click">
@@ -631,6 +646,7 @@ function bodyFocus() {
   border-radius: 5px;
   background-color: rgba(255, 255, 255, var(--transparency));
   box-shadow: 0px 0px 10px rgba(0, 0, 0, var(--transparency));
+  transition: transform 0.3s ease;
 
   #title {
     cursor: pointer;

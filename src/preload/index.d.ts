@@ -9,6 +9,7 @@ declare global {
       deleteOneData: (creationTime: number) => void
       setClipboardDatas: (clipboardDatas: ClipboardData[]) => void
       hideMainWindow: () => void
+      setBounds: (bounds: Electron.Rectangle) => void
       paste: (clipboardData: ClipboardData) => void
       updatePageData: (
         callback: (event: Electron.IpcRendererEvent, dataList: ClipboardData[]) => void

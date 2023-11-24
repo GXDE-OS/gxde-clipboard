@@ -3,7 +3,6 @@ import {
   BrowserWindow,
   Tray,
   Menu,
-  screen,
   clipboard,
   ipcMain,
   globalShortcut,
@@ -23,15 +22,11 @@ import {
 } from '../data/operate-data'
 
 function createWindow(): void {
-  const primaryDisplay = screen.getPrimaryDisplay()
-  const { width, height } = primaryDisplay.workAreaSize
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 300, // 窗口宽
-    height, // 窗口高
+    width: 0,
+    height: 0,
     resizable: false, // 禁止改变窗口大小
-    x: width - 300, // 窗口靠右
-    y: 0,
     alwaysOnTop: true, // 是否一直显示在最上层
     frame: false,
     transparent: true,
@@ -123,6 +118,9 @@ function createWindow(): void {
     async (_, clipboardDatas) => await setClipboardDatas(clipboardDatas)
   )
   ipcMain.handle('hideMainWindow', async () => mainWindow.minimize())
+  ipcMain.handle('setBounds', async (_, bounds) => {
+    mainWindow.setBounds(bounds)
+  })
   ipcMain.handle('paste', async (_, clipboardData) => {
     const { content, type } = clipboardData
     disabled = true

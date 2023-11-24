@@ -3,9 +3,11 @@ import { ref, reactive, onMounted, watch, computed, nextTick, toRaw } from 'vue'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 import { useRouter } from 'vue-router'
+import Settings from './Settings.vue'
+import { useConfigStore } from '../stores/config'
 
+const config = useConfigStore()
 const router = useRouter()
-const transparency = ref(0.5)
 const searchString = ref('')
 const showSearchInput = ref(false) // 是否显示搜索框
 const deleteConfirmVisible = ref(false) // 清空确认框
@@ -261,12 +263,10 @@ function windowAddEventListener() {
 
   // 滚轮调节透明度
   window.addEventListener('wheel', (e) => {
+    const delta = 5 * (e.deltaY > 0 ? 1 : -1)
     if (e.ctrlKey) {
-      if (
-        transparency.value + e.deltaY * 0.001 >= 0 &&
-        transparency.value + e.deltaY * 0.001 <= 1
-      ) {
-        transparency.value += e.deltaY * 0.001
+      if (config.transparency + delta >= 0 && config.transparency + delta <= 100) {
+        config.transparency += delta
       }
     }
   })
@@ -388,6 +388,19 @@ const showArrowDown = computed(() => {
   return result
 })
 
+const transform = computed(() => {
+  if (!mainWindowVisible.value) {
+    if (config.mainWindowPosition === 'left') {
+      return `translate(-${config.width}px, 0)`
+    } else if (config.mainWindowPosition === 'right') {
+      return `translate(${config.width}px, 0)`
+    } else if (config.mainWindowPosition === 'follow-mouse') {
+      return `translate(0, ${window.screen.availHeight})`
+    }
+  }
+  return `translate(0, 0)`
+})
+
 function scrollToTop() {
   scrollbarRef.value!.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -409,13 +422,7 @@ function bodyFocus() {
 </script>
 
 <template>
-  <div
-    id="wrapper"
-    :style="{
-      '--transparency': transparency,
-      transform: `translateX(${mainWindowVisible ? 0 : 300}px)`
-    }"
-  >
+  <div id="wrapper" :style="{ '--transparency': config.transparency / 100, transform }">
     <div id="head">
       <div>
         <el-popover placement="bottom-end" :width="200" trigger="click">
@@ -489,9 +496,14 @@ function bodyFocus() {
           >
             <Search />
           </el-icon>
-          <el-icon title="设置" @click="router.push('settings')">
-            <Setting />
-          </el-icon>
+          <el-popover :width="200" trigger="hover" placement="bottom-end">
+            <template #reference>
+              <el-icon title="设置(右键打开全部设置)" @click.right="router.push('settings')">
+                <Setting />
+              </el-icon>
+            </template>
+            <Settings></Settings>
+          </el-popover>
         </span>
       </div>
       <div v-show="showSearchInput">

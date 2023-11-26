@@ -31,6 +31,7 @@ const mainWindowVisible = ref(false)
 
 onMounted(async () => {
   clipboardDatas.push(...(await window.api.getClipDataList()))
+  setBounds()
   mainWindowVisible.value = true
   addScrollEvent()
   windowAddEventListener()
@@ -254,10 +255,33 @@ async function handleViewIconClick(path: string, clipboardData: ClipboardData, e
   )
 }
 
+async function setBounds() {
+  const { availWidth, availHeight } = window.screen
+  const width = Math.floor(config.width)
+  const height = Math.floor(availHeight * config.heightRate)
+  if (config.mainWindowPosition === 'follow-mouse') {
+    const { x: mousePositionX, y: mousePositionY } = await window.api.getMousePosition()
+    const maxX = availWidth - width
+    const maxY = availHeight - height
+    const x = Math.max(0, Math.min(maxX, mousePositionX - width / 2))
+    const y = Math.max(0, Math.min(maxY, mousePositionY - height / 2))
+    window.resizeTo(width, height)
+    window.moveTo(x, y)
+  } else if (config.mainWindowPosition === 'right') {
+    window.resizeTo(width, availHeight)
+    window.moveTo(availWidth - width, 0)
+  } else if (config.mainWindowPosition === 'left') {
+    window.resizeTo(width, availHeight)
+    window.moveTo(0, 0)
+  }
+}
+
 function windowAddEventListener() {
   window.addEventListener('message', ({ data }) => {
     if (data.type === 'closeDetailsWindow') {
       closeDetailsWindow()
+    } else if (data.type === 'setBounds') {
+      setBounds()
     }
   })
 
@@ -280,6 +304,7 @@ function windowAddEventListener() {
   })
 
   window.addEventListener('focus', function () {
+    setBounds()
     mainWindowVisible.value = true
   })
 

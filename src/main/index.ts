@@ -11,7 +11,7 @@ import {
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import clipboardListener from 'clipboard-event'
-import { keyboard, Key /* mouse */ } from '@nut-tree/nut-js'
+import { keyboard, Key, mouse } from '@nut-tree/nut-js'
 import icon from '../../resources/icon.png?asset'
 import {
   addClipData,
@@ -118,9 +118,7 @@ function createWindow(): void {
     async (_, clipboardDatas) => await setClipboardDatas(clipboardDatas)
   )
   ipcMain.handle('hideMainWindow', async () => mainWindow.minimize())
-  ipcMain.handle('setBounds', async (_, bounds) => {
-    mainWindow.setBounds(bounds)
-  })
+  ipcMain.handle('getMousePosition', async () => await mouse.getPosition())
   ipcMain.handle('paste', async (_, clipboardData) => {
     const { content, type } = clipboardData
     disabled = true

@@ -10,7 +10,7 @@ const api = {
   setClipboardDatas: (clipboardDatas: ClipboardData[]) =>
     ipcRenderer.invoke('setClipboardDatas', clipboardDatas),
   hideMainWindow: () => ipcRenderer.invoke('hideMainWindow'),
-  setBounds: (bounds: Electron.Rectangle) => ipcRenderer.invoke('setBounds', bounds),
+  getMousePosition: () => ipcRenderer.invoke('getMousePosition'),
   paste: (clipboardData: ClipboardData) => ipcRenderer.invoke('paste', clipboardData),
   updatePageData: (
     callback: (event: Electron.IpcRendererEvent, ...args: ClipboardData[]) => void

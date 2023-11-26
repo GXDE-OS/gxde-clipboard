@@ -5,6 +5,7 @@ export const useConfigStore = defineStore('config', {
   state: () => {
     const defaultConfig: Config = {
       width: 300,
+      heightRate: 0.5,
       mainWindowPosition: 'left',
       transparency: 0.6
     }
@@ -17,6 +18,7 @@ export const useConfigStore = defineStore('config', {
 
 type Config = {
   width: number
+  heightRate: number
   mainWindowPosition: 'left' | 'right' | 'follow-mouse'
   transparency: number
 }

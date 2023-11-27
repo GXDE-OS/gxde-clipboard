@@ -68,6 +68,12 @@ function paste(clipboardData: ClipboardData) {
   window.api.hideMainWindow()
 }
 
+function handleContentClick(clipboardData: ClipboardData) {
+  if (!window.getSelection()?.toString()) {
+    paste(clipboardData)
+  }
+}
+
 function top(clipboardData: ClipboardData) {
   const minOrder = Math.min(...clipboardDatas.map(({ order }) => order))
   clipboardData.order = minOrder - 1
@@ -304,8 +310,12 @@ function windowAddEventListener() {
   })
 
   window.addEventListener('focus', function () {
-    setBounds()
+    if (config.mainWindowPosition === 'follow-mouse') {
+      setBounds()
+    }
     mainWindowVisible.value = true
+    // 清除选中文本
+    window.getSelection()?.removeAllRanges()
   })
 
   // 设置操作快捷键
@@ -420,7 +430,7 @@ const transform = computed(() => {
     } else if (config.mainWindowPosition === 'right') {
       return `translate(${config.width}px, 0)`
     } else if (config.mainWindowPosition === 'follow-mouse') {
-      return `translate(0, ${window.screen.availHeight})`
+      return `translate(0, ${window.screen.availHeight * config.heightRate}px)`
     }
   }
   return `translate(0, 0)`
@@ -472,7 +482,10 @@ function bodyFocus() {
             ></div>
           </div>
         </el-popover>
-        <div v-show="!detailsWindow" id="move"></div>
+        <div
+          v-show="!detailsWindow && config.mainWindowPosition === 'follow-mouse'"
+          id="move"
+        ></div>
         <span>
           <el-icon v-show="showArrowUp" title="顶部 (Home)" @click="scrollToTop">
             <ArrowUp />
@@ -632,7 +645,7 @@ function bodyFocus() {
               </el-icon>
             </div>
           </div>
-          <div class="content" @click="paste(clipboardData)">
+          <div class="content" @click="handleContentClick(clipboardData)">
             <p
               v-if="clipboardData.type === 'text'"
               v-html="highlightSearchString(clipboardData.content)"
@@ -684,6 +697,7 @@ function bodyFocus() {
   background-color: rgba(255, 255, 255, var(--transparency));
   box-shadow: 0px 0px 10px rgba(0, 0, 0, var(--transparency));
   transition: transform 0.3s ease;
+  user-select: none;
 
   #title {
     cursor: pointer;
@@ -813,6 +827,7 @@ function bodyFocus() {
       background-color: rgba(255, 255, 255, 0.6);
       padding: 5px 10px;
       cursor: pointer;
+      user-select: text;
       p {
         display: -webkit-box;
         -webkit-box-orient: vertical;

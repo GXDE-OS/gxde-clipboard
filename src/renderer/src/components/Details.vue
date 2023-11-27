@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import 'highlight.js/styles/github.css'
 
 const clipboardData = ref<ClipboardData | null>(null)
+const isFullScreen = ref(false) // 是否为全屏
 
 onMounted(async () => {
   const details = document.querySelector('#details')!
@@ -18,12 +19,19 @@ function closeDetailsWindow() {
     '*'
   )
 }
+
+function fullScreen() {
+  window.moveTo(0, 0)
+  window.resizeTo(window.screen.availWidth, window.screen.availHeight)
+  isFullScreen.value = true
+}
 </script>
 
 <template>
   <div id="wrapper">
     <div id="head">
       <div id="icon">
+        <el-icon v-if="!isFullScreen" title="全屏" @click="fullScreen"><FullScreen /></el-icon>
         <el-icon title="关闭" @click="closeDetailsWindow"><Close /></el-icon>
       </div>
     </div>

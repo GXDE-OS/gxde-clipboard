@@ -6,12 +6,13 @@ import {
   clipboard,
   ipcMain,
   globalShortcut,
-  nativeImage
+  nativeImage,
+  screen
 } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import clipboardListener from 'clipboard-event'
-import { keyboard, Key, mouse } from '@nut-tree/nut-js'
+import { keyboard, Key } from '@nut-tree/nut-js'
 import icon from '../../resources/icon.png?asset'
 import {
   addClipData,
@@ -27,7 +28,6 @@ function createWindow(): void {
     width: 0,
     height: 0,
     resizable: false, // 禁止改变窗口大小
-    alwaysOnTop: true, // 是否一直显示在最上层
     frame: false,
     transparent: true,
     show: false,
@@ -118,7 +118,7 @@ function createWindow(): void {
     async (_, clipboardDatas) => await setClipboardDatas(clipboardDatas)
   )
   ipcMain.handle('hideMainWindow', async () => mainWindow.minimize())
-  ipcMain.handle('getMousePosition', async () => await mouse.getPosition())
+  ipcMain.handle('getMousePosition', () => screen.getCursorScreenPoint())
   ipcMain.handle('paste', async (_, clipboardData) => {
     const { content, type } = clipboardData
     disabled = true
@@ -146,7 +146,6 @@ function createWindow(): void {
           frame: false,
           transparent: true,
           resizable: true,
-          alwaysOnTop: true,
           type: 'toolbar', // 不显示任务栏窗口
           focusable: false,
           webPreferences: {

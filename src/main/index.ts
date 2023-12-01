@@ -67,30 +67,30 @@ function createWindow(): void {
     if (disabled) return
     console.log('availableFormats', clipboard.availableFormats())
     const availableFormats = clipboard.availableFormats()
+    const clipboardData = {
+      type: '',
+      content: '',
+      image: '',
+      creationTime: new Date().getTime(),
+      state: '',
+      color: '',
+      order: 0
+    }
     if (availableFormats.includes('image/png')) {
       const img = clipboard.readImage()
-      const dataUrl = img.toDataURL()
-      await addClipData({
-        type: 'image',
-        content: dataUrl,
-        creationTime: new Date().getTime(),
-        state: '',
-        color: '',
-        order: 0
-      })
-    } else if (availableFormats.includes('text/plain')) {
-      const text = clipboard.readText()
-      if (text) {
-        await addClipData({
-          type: 'text',
-          content: text,
-          creationTime: new Date().getTime(),
-          state: '',
-          color: '',
-          order: 0
-        })
-      }
+      clipboardData.image = img.toDataURL()
     }
+    if (availableFormats.includes('text/plain')) {
+      const text = clipboard.readText()
+      clipboardData.content = text
+    }
+    clipboardData.type =
+      clipboardData.image && clipboardData.content
+        ? 'imageText'
+        : clipboardData.image
+          ? 'image'
+          : 'text'
+    await addClipData(clipboardData)
     mainWindow.webContents.send('updatePageData', await getClipDataList())
   })
 

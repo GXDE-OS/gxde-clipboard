@@ -82,7 +82,7 @@ function top(clipboardData: ClipboardData) {
 
 function nodeVisible(clipboardData: ClipboardData) {
   if (searchString.value) {
-    if (clipboardData.type === 'text') {
+    if (clipboardData.content) {
       return (
         clipboardData.content.toLowerCase().includes(searchString.value.toLowerCase()) &&
         (currentColor.value ? currentColor.value === clipboardData.color : true)
@@ -206,7 +206,7 @@ async function getContentInfo(
   } else {
     return new Promise((resolve) => {
       const img = new Image()
-      img.src = clipboardData.content
+      img.src = clipboardData.image
       img.onload = function () {
         resolve({
           contentWidth: img.width,
@@ -589,7 +589,7 @@ function bodyFocus() {
                     }"
                     title="单击添加标记(右键取消标记)"
                     @click.right="changeOneData(clipboardData, 'color', '')"
-                    >{{ { text: '文本', image: '图片' }[clipboardData.type] }}</b
+                    >{{ { text: '文本', image: '图片', imageText: '图文' }[clipboardData.type] }}</b
                   >
                 </template>
                 <div class="color">
@@ -647,14 +647,10 @@ function bodyFocus() {
           </div>
           <div class="content" @click="handleContentClick(clipboardData)">
             <p
-              v-if="clipboardData.type === 'text'"
+              v-if="clipboardData.content"
               v-html="highlightSearchString(clipboardData.content)"
             ></p>
-            <img
-              v-else-if="clipboardData.type === 'image'"
-              :src="clipboardData.content"
-              alt="图片"
-            />
+            <img v-if="clipboardData.image" :src="clipboardData.image" alt="图片" />
           </div>
           <div class="footer">
             <div
@@ -824,6 +820,8 @@ function bodyFocus() {
     }
 
     .content {
+      display: flex;
+      flex-direction: column;
       background-color: rgba(255, 255, 255, 0.6);
       padding: 5px 10px;
       cursor: pointer;

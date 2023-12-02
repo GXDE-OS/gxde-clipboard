@@ -63,14 +63,14 @@ function setClipboardDatas() {
   window.api.setClipboardDatas(toRaw(clipboardDatas))
 }
 
-function paste(clipboardData: ClipboardData) {
-  window.api.paste(toRaw(clipboardData))
+async function paste(clipboardData: ClipboardData, field: 'text' | 'image') {
   window.api.hideMainWindow()
+  window.api.paste(toRaw(clipboardData), field)
 }
 
-function handleContentClick(clipboardData: ClipboardData) {
+function handleContentClick(clipboardData: ClipboardData, field: 'text' | 'image') {
   if (!window.getSelection()?.toString()) {
-    paste(clipboardData)
+    paste(clipboardData, field)
   }
 }
 
@@ -82,9 +82,9 @@ function top(clipboardData: ClipboardData) {
 
 function nodeVisible(clipboardData: ClipboardData) {
   if (searchString.value) {
-    if (clipboardData.content) {
+    if (clipboardData.text) {
       return (
-        clipboardData.content.toLowerCase().includes(searchString.value.toLowerCase()) &&
+        clipboardData.text.toLowerCase().includes(searchString.value.toLowerCase()) &&
         (currentColor.value ? currentColor.value === clipboardData.color : true)
       )
     } else {
@@ -112,16 +112,16 @@ function changeSearchInputVisibility(visibility?: boolean) {
   }
 }
 
-function highlightSearchString(content: string) {
+function highlightSearchString(text: string) {
   // 转义
-  content = content.replace(
+  text = text.replace(
     /[<>&"]/g,
     (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c] || c
   )
   if (searchString.value) {
-    content = content.replace(new RegExp(searchString.value, 'ig'), '<span>$&</span>')
+    text = text.replace(new RegExp(searchString.value, 'ig'), '<span>$&</span>')
   }
-  return content
+  return text
 }
 
 function addScrollEvent() {
@@ -189,15 +189,16 @@ function closeDetailsWindow() {
 }
 
 async function getContentInfo(
-  clipboardData: ClipboardData
+  clipboardData: ClipboardData,
+  field: 'text' | 'image'
 ): Promise<{ contentWidth: number; contentHeight: number; renderedHTML: string }> {
   const details = document.querySelector('#details')!
-  if (clipboardData.type === 'text') {
+  if (field === 'text') {
     // 如果包含特殊字符,就高亮处理,否则当作纯文本
-    if (clipboardData.content.search(/[[\]{}<>=]/g) !== -1) {
-      details.innerHTML = hljs.highlightAuto(clipboardData.content).value
+    if (clipboardData.text.search(/[[\]{}<>=]/g) !== -1) {
+      details.innerHTML = hljs.highlightAuto(clipboardData.text).value
     } else {
-      details.innerHTML = hljs.highlight(clipboardData.content, { language: 'plaintext' }).value
+      details.innerHTML = hljs.highlight(clipboardData.text, { language: 'plaintext' }).value
     }
     const renderedHTML = details.innerHTML
     const { scrollWidth, scrollHeight } = details
@@ -218,7 +219,12 @@ async function getContentInfo(
   }
 }
 
-async function handleViewIconClick(path: string, clipboardData: ClipboardData, event: MouseEvent) {
+async function handleViewIconClick(
+  path: string,
+  clipboardData: ClipboardData,
+  event: MouseEvent,
+  field: 'text' | 'image'
+) {
   // 点击同一个预览图标时,隐藏已显示的详情窗口
   if (
     detailsWindow.value &&
@@ -240,7 +246,7 @@ async function handleViewIconClick(path: string, clipboardData: ClipboardData, e
   // 详情窗口允许的最大宽高
   const maxWidth = Math.max(mainWindowX, availWidth - (mainWindowX + window.innerWidth))
   const maxHeight = Math.max(availHeight - (top + mainWindowY), bottom)
-  const { contentWidth, contentHeight, renderedHTML } = await getContentInfo(clipboardData) // pre内容区的宽高
+  const { contentWidth, contentHeight, renderedHTML } = await getContentInfo(clipboardData, field) // pre内容区的宽高
   const width = Math.min(maxWidth, Math.max(contentWidth + 30, 200)) // 30为详情窗口内pre与窗口的间距
   const height = Math.min(maxHeight, Math.max(contentHeight + 30, bottom - top + 10))
   const x =
@@ -304,9 +310,7 @@ function windowAddEventListener() {
   // 失去焦点时隐藏窗口
   window.addEventListener('blur', () => {
     mainWindowVisible.value = false
-    setTimeout(() => {
-      window.api.hideMainWindow()
-    }, 300)
+    window.api.hideMainWindow()
   })
 
   window.addEventListener('focus', function () {
@@ -331,7 +335,7 @@ function windowAddEventListener() {
       }
       if (creationTime) {
         const clipboardData = clipboardDatas.find((i) => i.creationTime === creationTime)!
-        paste(clipboardData)
+        paste(clipboardData, clipboardData.text ? 'text' : 'image')
       }
     } else if (e.ctrlKey && e.key === 'f') {
       // 搜索快捷键
@@ -390,7 +394,7 @@ function handleSearchInputKeyUp(e: KeyboardEvent) {
     }
     if (creationTime) {
       const clipboardData = clipboardDatas.find((i) => i.creationTime === creationTime)!
-      paste(clipboardData)
+      paste(clipboardData, clipboardData.text ? 'text' : 'image')
     }
   }
 }
@@ -589,7 +593,13 @@ function bodyFocus() {
                     }"
                     title="单击添加标记(右键取消标记)"
                     @click.right="changeOneData(clipboardData, 'color', '')"
-                    >{{ { text: '文本', image: '图片', imageText: '图文' }[clipboardData.type] }}</b
+                    >{{
+                      clipboardData.text && clipboardData.image
+                        ? '图文'
+                        : clipboardData.text
+                          ? '文字'
+                          : '图片'
+                    }}</b
                   >
                 </template>
                 <div class="color">
@@ -645,12 +655,20 @@ function bodyFocus() {
               </el-icon>
             </div>
           </div>
-          <div class="content" @click="handleContentClick(clipboardData)">
+          <div class="content">
             <p
-              v-if="clipboardData.content"
-              v-html="highlightSearchString(clipboardData.content)"
+              v-if="clipboardData.text"
+              :title="clipboardData.text && clipboardData.image ? '点击粘贴文本' : ''"
+              @click="handleContentClick(clipboardData, 'text')"
+              v-html="highlightSearchString(clipboardData.text)"
             ></p>
-            <img v-if="clipboardData.image" :src="clipboardData.image" alt="图片" />
+            <img
+              v-if="clipboardData.image"
+              :title="clipboardData.text && clipboardData.image ? '点击粘贴图片' : ''"
+              :src="clipboardData.image"
+              alt="图片"
+              @click="handleContentClick(clipboardData, 'image')"
+            />
           </div>
           <div class="footer">
             <div
@@ -669,7 +687,14 @@ function bodyFocus() {
               title="详情"
               tabindex="-1"
               @blur="closeDetailsWindow"
-              @click="handleViewIconClick('details', clipboardData, $event)"
+              @click="
+                handleViewIconClick(
+                  'details',
+                  clipboardData,
+                  $event,
+                  clipboardData.image ? 'image' : 'text'
+                )
+              "
             >
               <View />
             </el-icon>

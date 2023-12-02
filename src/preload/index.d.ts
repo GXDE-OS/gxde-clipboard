@@ -10,7 +10,7 @@ declare global {
       setClipboardDatas: (clipboardDatas: ClipboardData[]) => void
       hideMainWindow: () => void
       getMousePosition: () => { x: number; y: number }
-      paste: (clipboardData: ClipboardData) => void
+      paste: (clipboardData: ClipboardData, field: 'text' | 'image') => void
       updatePageData: (
         callback: (event: Electron.IpcRendererEvent, dataList: ClipboardData[]) => void
       ) => void

@@ -1,6 +1,5 @@
 declare interface ClipboardData {
-  type: string
-  content: string
+  text: string
   image: string
   creationTime: number
   state: string

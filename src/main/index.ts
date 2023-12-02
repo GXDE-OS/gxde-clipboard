@@ -68,8 +68,7 @@ function createWindow(): void {
     console.log('availableFormats', clipboard.availableFormats())
     const availableFormats = clipboard.availableFormats()
     const clipboardData = {
-      type: '',
-      content: '',
+      text: '',
       image: '',
       creationTime: new Date().getTime(),
       state: '',
@@ -82,14 +81,8 @@ function createWindow(): void {
     }
     if (availableFormats.includes('text/plain')) {
       const text = clipboard.readText()
-      clipboardData.content = text
+      clipboardData.text = text
     }
-    clipboardData.type =
-      clipboardData.image && clipboardData.content
-        ? 'imageText'
-        : clipboardData.image
-          ? 'image'
-          : 'text'
     await addClipData(clipboardData)
     mainWindow.webContents.send('updatePageData', await getClipDataList())
   })
@@ -119,13 +112,14 @@ function createWindow(): void {
   )
   ipcMain.handle('hideMainWindow', async () => mainWindow.minimize())
   ipcMain.handle('getMousePosition', () => screen.getCursorScreenPoint())
-  ipcMain.handle('paste', async (_, clipboardData) => {
-    const { content, type } = clipboardData
+  ipcMain.handle('paste', async (_, clipboardData, field) => {
     disabled = true
-    if (type === 'text') {
-      clipboard.writeText(content)
-    } else if (type === 'image') {
-      const image = nativeImage.createFromDataURL(content)
+    // 先清空,否则会出现在文本框粘贴图片时,实际粘贴的是之前存在剪贴板中的文字
+    clipboard.clear()
+    if (field === 'text') {
+      clipboard.writeText(clipboardData.text)
+    } else if (field === 'image') {
+      const image = nativeImage.createFromDataURL(clipboardData.text)
       clipboard.writeImage(image)
     }
     await keyboard.pressKey(Key.LeftControl, Key.V)

@@ -11,7 +11,8 @@ const api = {
     ipcRenderer.invoke('setClipboardDatas', clipboardDatas),
   hideMainWindow: () => ipcRenderer.invoke('hideMainWindow'),
   getMousePosition: () => ipcRenderer.invoke('getMousePosition'),
-  paste: (clipboardData: ClipboardData) => ipcRenderer.invoke('paste', clipboardData),
+  paste: (clipboardData: ClipboardData, field: 'text' | 'image') =>
+    ipcRenderer.invoke('paste', clipboardData, field),
   updatePageData: (
     callback: (event: Electron.IpcRendererEvent, ...args: ClipboardData[]) => void
   ) => ipcRenderer.on('updatePageData', callback)

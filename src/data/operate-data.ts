@@ -12,7 +12,7 @@ export async function getClipDataList(searchString?: string) {
   const dataList = JSON.parse((await fs.readFile(clipboardDatasPath, 'utf-8')) || '[]')
   if (searchString && dataList.length) {
     const lowerCase = searchString.toLowerCase()
-    return dataList.filter(({ content }) => content.toLowerCase().includes(lowerCase))
+    return dataList.filter(({ text }) => text.toLowerCase().includes(lowerCase))
   } else {
     return dataList
   }
@@ -20,8 +20,7 @@ export async function getClipDataList(searchString?: string) {
 
 export async function addClipData(clipboardData: ClipboardData) {
   const dataList = JSON.parse((await fs.readFile(clipboardDatasPath, 'utf-8')) || '[]')
-  if (dataList[0]?.type === clipboardData.type && dataList[0]?.content === clipboardData.content)
-    return
+  if (dataList[0]?.image === clipboardData.image && dataList[0]?.text === clipboardData.text) return
   dataList.unshift(clipboardData)
   await fs.writeFile(clipboardDatasPath, JSON.stringify(dataList, null, 4))
 }

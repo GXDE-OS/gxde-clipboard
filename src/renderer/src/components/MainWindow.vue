@@ -39,7 +39,7 @@ onMounted(async () => {
 
 watch([searchString, currentColor, clipboardDatas], () => {
   bodyFocus()
-  nextTick(setMarkMap)
+  setTimeout(setMarkMap)
 })
 
 function changeOneData(clipboardData: ClipboardData, field: string, value: string | number) {
@@ -68,9 +68,17 @@ async function paste(clipboardData: ClipboardData, field: 'text' | 'image') {
   window.api.paste(toRaw(clipboardData), field)
 }
 
-function handleContentClick(clipboardData: ClipboardData, field: 'text' | 'image') {
+function handleContentClick(
+  event: MouseEvent,
+  clipboardData: ClipboardData,
+  field: 'text' | 'image'
+) {
   if (!window.getSelection()?.toString()) {
-    paste(clipboardData, field)
+    if (event.ctrlKey) {
+      handleViewIconClick('details', clipboardData, event, field)
+    } else {
+      paste(clipboardData, field)
+    }
   }
 }
 
@@ -119,7 +127,7 @@ function highlightSearchString(text: string) {
     (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c] || c
   )
   if (searchString.value) {
-    text = text.replace(new RegExp(searchString.value, 'ig'), '<span>$&</span>')
+    text = text.replace(new RegExp(searchString.value, 'ig'), '<mark>$&</mark>')
   }
   return text
 }
@@ -143,7 +151,7 @@ function setMarkMap() {
   nodeList.sort((a, b) => {
     return Number(a.style.order) - Number(b.style.order)
   })
-  nodeList.forEach((node) => {
+  for (const node of nodeList) {
     const creationTime = Number(node.dataset['creationTime'])
     if (node.style.display === '') {
       const footerNode = node.querySelector('.footer') as HTMLElement
@@ -156,9 +164,9 @@ function setMarkMap() {
         markMap.set(creationTime, '') // 表示在视口外
       }
     } else {
-      markMap.set(creationTime, null) // null表述display为none
+      markMap.set(creationTime, null) // null表示display为none
     }
-  })
+  }
 }
 
 function deltaTime(creationTime: number) {
@@ -311,6 +319,7 @@ function windowAddEventListener() {
   window.addEventListener('blur', () => {
     mainWindowVisible.value = false
     window.api.hideMainWindow()
+    closeDetailsWindow()
   })
 
   window.addEventListener('focus', function () {
@@ -658,17 +667,17 @@ function bodyFocus() {
           <div class="content">
             <p
               v-if="clipboardData.text"
-              :title="clipboardData.text && clipboardData.image ? '点击粘贴文本' : ''"
-              @click="handleContentClick(clipboardData, 'text')"
+              title="点击粘贴文本"
+              @click="handleContentClick($event, clipboardData, 'text')"
               v-html="highlightSearchString(clipboardData.text)"
             ></p>
-            <img
+            <div
               v-if="clipboardData.image"
-              :title="clipboardData.text && clipboardData.image ? '点击粘贴图片' : ''"
-              :src="clipboardData.image"
-              alt="图片"
-              @click="handleContentClick(clipboardData, 'image')"
-            />
+              title="点击粘贴图片"
+              @click="handleContentClick($event, clipboardData, 'image')"
+            >
+              <img :src="clipboardData.image" />
+            </div>
           </div>
           <div class="footer">
             <div
@@ -769,7 +778,7 @@ function bodyFocus() {
     flex-direction: column;
     border-radius: 5px;
     overflow: hidden;
-    margin: 0px 10px 10px 10px;
+    margin: 5px;
     box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
     min-height: 50px;
     transition: order 1s 0s ease;
@@ -851,27 +860,27 @@ function bodyFocus() {
       padding: 5px 10px;
       cursor: pointer;
       user-select: text;
-      p {
+      > p {
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 3;
         word-wrap: anywhere;
         overflow: hidden;
-        span {
-          background-color: #ff8000;
-          border-radius: 3px;
+        &:has(+ div) {
+          -webkit-line-clamp: 2;
+          margin-bottom: 5px;
         }
       }
 
-      &:has(img) {
+      > div {
         display: flex;
         justify-content: center;
-      }
-
-      img {
-        max-width: 100%;
-        max-height: 100px;
-        object-fit: scale-down;
+        > img {
+          object-fit: scale-down;
+          max-height: 100px;
+          max-width: 100%;
+          min-height: 50px;
+        }
       }
     }
 

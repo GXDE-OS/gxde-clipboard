@@ -2,13 +2,14 @@
 import { onMounted, ref } from 'vue'
 import 'highlight.js/styles/github.css'
 
-const clipboardData = ref<ClipboardData | null>(null)
+// const clipboardData = ref(
+//   JSON.parse(window.sessionStorage.getItem('clipboardData')!) as ClipboardData
+// )
 const isFullScreen = ref(false) // 是否为全屏
 
 onMounted(async () => {
   const details = document.querySelector('#details')!
   details.innerHTML = window.sessionStorage.getItem('highlineHTML')!
-  clipboardData.value = JSON.parse(window.sessionStorage.getItem('clipboardData')!) as ClipboardData
 })
 
 function closeDetailsWindow() {

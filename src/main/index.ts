@@ -30,6 +30,7 @@ function createWindow(): void {
     resizable: false, // 禁止改变窗口大小
     frame: false,
     transparent: true,
+    alwaysOnTop: true,
     show: false,
     type: 'toolbar', // 不显示任务栏窗口
     autoHideMenuBar: true,
@@ -119,7 +120,7 @@ function createWindow(): void {
     if (field === 'text') {
       clipboard.writeText(clipboardData.text)
     } else if (field === 'image') {
-      const image = nativeImage.createFromDataURL(clipboardData.text)
+      const image = nativeImage.createFromDataURL(clipboardData.image)
       clipboard.writeImage(image)
     }
     await keyboard.pressKey(Key.LeftControl, Key.V)
@@ -139,6 +140,8 @@ function createWindow(): void {
         overrideBrowserWindowOptions: {
           frame: false,
           transparent: true,
+          alwaysOnTop: true,
+          parent: mainWindow, // 设置层级在父窗口之上
           resizable: true,
           type: 'toolbar', // 不显示任务栏窗口
           focusable: false,

@@ -119,7 +119,7 @@ function createWindow(): void {
     if (field === 'text') {
       clipboard.writeText(clipboardData.text)
     } else if (field === 'image') {
-      const image = nativeImage.createFromDataURL(clipboardData.text)
+      const image = nativeImage.createFromDataURL(clipboardData.image)
       clipboard.writeImage(image)
     }
     await keyboard.pressKey(Key.LeftControl, Key.V)
@@ -141,6 +141,7 @@ function createWindow(): void {
           transparent: true,
           resizable: true,
           type: 'toolbar', // 不显示任务栏窗口
+          alwaysOnTop: true,
           focusable: false,
           webPreferences: {
             preload: join(__dirname, '../preload/index.js')

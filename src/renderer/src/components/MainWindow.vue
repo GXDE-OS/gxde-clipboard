@@ -39,7 +39,7 @@ onMounted(async () => {
 
 watch([searchString, currentColor, clipboardDatas], () => {
   bodyFocus()
-  nextTick(setMarkMap)
+  setTimeout(setMarkMap)
 })
 
 function changeOneData(clipboardData: ClipboardData, field: string, value: string | number) {
@@ -119,7 +119,7 @@ function highlightSearchString(text: string) {
     (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c] || c
   )
   if (searchString.value) {
-    text = text.replace(new RegExp(searchString.value, 'ig'), '<span>$&</span>')
+    text = text.replace(new RegExp(searchString.value, 'ig'), '<mark>$&</mark>')
   }
   return text
 }
@@ -658,17 +658,17 @@ function bodyFocus() {
           <div class="content">
             <p
               v-if="clipboardData.text"
-              :title="clipboardData.text && clipboardData.image ? '点击粘贴文本' : ''"
+              title="点击粘贴文本"
               @click="handleContentClick(clipboardData, 'text')"
               v-html="highlightSearchString(clipboardData.text)"
             ></p>
-            <img
+            <div
               v-if="clipboardData.image"
-              :title="clipboardData.text && clipboardData.image ? '点击粘贴图片' : ''"
-              :src="clipboardData.image"
-              alt="图片"
+              title="点击粘贴图片"
               @click="handleContentClick(clipboardData, 'image')"
-            />
+            >
+              <img :src="clipboardData.image" />
+            </div>
           </div>
           <div class="footer">
             <div
@@ -769,7 +769,7 @@ function bodyFocus() {
     flex-direction: column;
     border-radius: 5px;
     overflow: hidden;
-    margin: 0px 10px 10px 10px;
+    margin: 5px;
     box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
     min-height: 50px;
     transition: order 1s 0s ease;
@@ -851,27 +851,27 @@ function bodyFocus() {
       padding: 5px 10px;
       cursor: pointer;
       user-select: text;
-      p {
+      > p {
         display: -webkit-box;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 3;
         word-wrap: anywhere;
         overflow: hidden;
-        span {
-          background-color: #ff8000;
-          border-radius: 3px;
+        &:has(+ div) {
+          -webkit-line-clamp: 2;
+          margin-bottom: 5px;
         }
       }
 
-      &:has(img) {
+      > div {
         display: flex;
         justify-content: center;
-      }
-
-      img {
-        max-width: 100%;
-        max-height: 100px;
-        object-fit: scale-down;
+        > img {
+          object-fit: scale-down;
+          max-height: 100px;
+          max-width: 100%;
+          min-height: 50px;
+        }
       }
     }
 

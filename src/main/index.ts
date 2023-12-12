@@ -144,6 +144,7 @@ function createWindow(): void {
           parent: mainWindow, // 设置层级在父窗口之上
           resizable: true,
           type: 'toolbar', // 不显示任务栏窗口
+          alwaysOnTop: true,
           focusable: false,
           webPreferences: {
             preload: join(__dirname, '../preload/index.js')

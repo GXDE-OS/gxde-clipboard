@@ -37,7 +37,7 @@ function fullScreen() {
       </div>
     </div>
     <el-scrollbar id="scrollbar">
-      <pre id="details"></pre>
+      <pre id="details" :style="{ fontSize: isFullScreen ? '16px' : '' }"></pre>
     </el-scrollbar>
   </div>
 </template>

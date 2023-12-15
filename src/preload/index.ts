@@ -9,7 +9,8 @@ const api = {
   deleteOneData: (creationTime: number) => ipcRenderer.invoke('deleteOneData', creationTime),
   setClipboardDatas: (clipboardDatas: ClipboardData[]) =>
     ipcRenderer.invoke('setClipboardDatas', clipboardDatas),
-  hideMainWindow: () => ipcRenderer.invoke('hideMainWindow'),
+  execMainWindowMethod: (methodName: string) =>
+    ipcRenderer.invoke('execMainWindowMethod', methodName),
   getMousePosition: () => ipcRenderer.invoke('getMousePosition'),
   paste: (clipboardData: ClipboardData, field: 'text' | 'image') =>
     ipcRenderer.invoke('paste', clipboardData, field),

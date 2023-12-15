@@ -8,7 +8,7 @@ declare global {
       changeOneData: (clipboardData: ClipboardData) => void
       deleteOneData: (creationTime: number) => void
       setClipboardDatas: (clipboardDatas: ClipboardData[]) => void
-      hideMainWindow: () => void
+      execMainWindowMethod: (methodName: string) => void
       getMousePosition: () => { x: number; y: number }
       paste: (clipboardData: ClipboardData, field: 'text' | 'image') => void
       updatePageData: (

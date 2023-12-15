@@ -49,5 +49,8 @@ function resizeWindow() {
     <el-form-item label="透明度">
       <el-slider v-model="config.transparency" />
     </el-form-item>
+    <el-form-item label="软件启动时显示主界面">
+      <el-switch v-model="config.show" />
+    </el-form-item>
   </el-form>
 </template>

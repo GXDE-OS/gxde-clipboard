@@ -111,7 +111,7 @@ function createWindow(): void {
     'setClipboardDatas',
     async (_, clipboardDatas) => await setClipboardDatas(clipboardDatas)
   )
-  ipcMain.handle('hideMainWindow', async () => mainWindow.minimize())
+  ipcMain.handle('execMainWindowMethod', async (_, methodName) => await mainWindow[methodName]())
   ipcMain.handle('getMousePosition', () => screen.getCursorScreenPoint())
   ipcMain.handle('paste', async (_, clipboardData, field) => {
     disabled = true
@@ -128,10 +128,6 @@ function createWindow(): void {
     disabled = false
   })
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
-  })
-
   // 拦截window.open(),设置弹出窗口的属性
   mainWindow.webContents.setWindowOpenHandler((details) => {
     if (details.url) {
@@ -144,7 +140,6 @@ function createWindow(): void {
           parent: mainWindow, // 设置层级在父窗口之上
           resizable: true,
           type: 'toolbar', // 不显示任务栏窗口
-          alwaysOnTop: true,
           focusable: false,
           webPreferences: {
             preload: join(__dirname, '../preload/index.js')

@@ -29,12 +29,16 @@ const colorList = reactive([
 const currentColor = ref('')
 const mainWindowVisible = ref(false)
 
+windowAddEventListener()
+setBounds()
+if (config.show) {
+  window.api.execMainWindowMethod('show')
+  mainWindowVisible.value = true
+}
+
 onMounted(async () => {
   clipboardDatas.push(...(await window.api.getClipDataList()))
-  setBounds()
-  mainWindowVisible.value = true
   addScrollEvent()
-  windowAddEventListener()
 })
 
 watch([searchString, currentColor, clipboardDatas], () => {
@@ -64,7 +68,7 @@ function setClipboardDatas() {
 }
 
 async function paste(clipboardData: ClipboardData, field: 'text' | 'image') {
-  window.api.hideMainWindow()
+  window.api.execMainWindowMethod('minimize')
   window.api.paste(toRaw(clipboardData), field)
 }
 
@@ -236,6 +240,7 @@ async function handleViewIconClick(
   // 点击同一个预览图标时,隐藏已显示的详情窗口
   if (
     detailsWindow.value &&
+    field === window.sessionStorage.getItem('field') &&
     detailsWindow.value.location.hash.match(/creationTime=(\d+)$/)?.[1] ===
       String(clipboardData.creationTime)
   ) {
@@ -268,6 +273,7 @@ async function handleViewIconClick(
 
   window.sessionStorage.setItem('clipboardData', JSON.stringify(clipboardData))
   window.sessionStorage.setItem('highlineHTML', renderedHTML)
+  window.sessionStorage.setItem('field', field)
   detailsWindow.value = window.open(
     `#/${path}?creationTime=${clipboardData.creationTime}`,
     path,
@@ -318,7 +324,7 @@ function windowAddEventListener() {
   // 失去焦点时隐藏窗口
   window.addEventListener('blur', () => {
     mainWindowVisible.value = false
-    window.api.hideMainWindow()
+    window.api.execMainWindowMethod('minimize')
     closeDetailsWindow()
   })
 
@@ -329,6 +335,10 @@ function windowAddEventListener() {
     mainWindowVisible.value = true
     // 清除选中文本
     window.getSelection()?.removeAllRanges()
+  })
+
+  window.addEventListener('resize', function () {
+    setMarkMap()
   })
 
   // 设置操作快捷键
@@ -384,7 +394,7 @@ function windowAddEventListener() {
       if (detailsWindow.value) {
         closeDetailsWindow()
       } else {
-        window.api.hideMainWindow()
+        window.api.execMainWindowMethod('minimize')
       }
     }
   })
@@ -869,6 +879,7 @@ function bodyFocus() {
         &:has(+ div) {
           -webkit-line-clamp: 2;
           margin-bottom: 5px;
+          font-size: 14px;
         }
       }
 

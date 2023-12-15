@@ -7,7 +7,8 @@ export const useConfigStore = defineStore('config', {
       width: 300,
       heightRate: 0.7,
       mainWindowPosition: 'right',
-      transparency: 60
+      transparency: 60, // 主界面透明度
+      show: true // 软件启动时显示主界面
     }
     return {
       ...defaultConfig,
@@ -21,6 +22,7 @@ type Config = {
   heightRate: number
   mainWindowPosition: 'left' | 'right' | 'follow-mouse'
   transparency: number
+  show: boolean
 }
 
 const config = useConfigStore()

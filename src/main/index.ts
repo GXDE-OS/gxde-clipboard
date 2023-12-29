@@ -44,21 +44,20 @@ function createWindow(): void {
   // 创建托盘图标
   const tray = new Tray(icon)
   tray.setToolTip('丁丁剪贴板')
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '退出',
+      click: () => {
+        mainWindow.close()
+      }
+    }
+  ])
+  tray.setContextMenu(contextMenu)
   tray.on('click', function () {
     mainWindow.show()
-    mainWindow.focus()
   })
   tray.on('right-click', function () {
-    const template = [
-      {
-        label: '退出',
-        click: () => {
-          mainWindow.close()
-        }
-      }
-    ]
-    const contextMenu = Menu.buildFromTemplate(template)
-    tray.setContextMenu(contextMenu)
+    tray.popUpContextMenu()
   })
 
   // 监听剪贴板变化
@@ -91,7 +90,7 @@ function createWindow(): void {
   // 注册全局快捷键
   if (!globalShortcut.isRegistered('Shift+CommandOrControl+V')) {
     globalShortcut.register('Shift+CommandOrControl+V', async () => {
-      mainWindow.show()
+      mainWindow.restore()
     })
   }
   // shift+ctrl+c只复制内容到系统剪贴板,不记录到软件

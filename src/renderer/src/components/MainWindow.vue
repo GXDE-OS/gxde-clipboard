@@ -14,7 +14,6 @@ const deleteConfirmVisible = ref(false) // 清空确认框
 const searchInput = ref() // 获得搜索框dom
 const scrollbarRef = ref() // 滚动条dom
 const clipboardDatas: ClipboardData[] = reactive([])
-const detailsWindow = ref()
 const markMap = reactive(new Map()) // 记录标记信息
 const deleteWhich = ref('all') // 'all' | 'normal'
 const colorList = reactive([
@@ -28,6 +27,32 @@ const colorList = reactive([
 ])
 const currentColor = ref('')
 const mainWindowVisible = ref(false)
+
+const windowsManager = new (class {
+  windowsMap = new Map()
+  async open(url: string, target: string, features?: string) {
+    if (this.isOpen(target)) {
+      await this.close(target)
+    }
+    this.windowsMap.set(target, window.open(url, target, features))
+  }
+  async close(target: string) {
+    if (this.isOpen(target)) {
+      const targetWindow = this.windowsMap.get(target)
+      targetWindow.close()
+      while (!targetWindow.closed) {
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      this.windowsMap.delete(target)
+    }
+  }
+  isOpen(target: string) {
+    return this.windowsMap.has(target) && !this.get(target).closed
+  }
+  get(target: string) {
+    return this.windowsMap.get(target)
+  }
+})()
 
 windowAddEventListener()
 setBounds()
@@ -79,7 +104,7 @@ function handleContentClick(
 ) {
   if (!window.getSelection()?.toString()) {
     if (event.ctrlKey) {
-      handleViewIconClick('details', clipboardData, event, field)
+      preview('details', clipboardData, event, field)
     } else {
       paste(clipboardData, field)
     }
@@ -138,7 +163,7 @@ function highlightSearchString(text: string) {
 
 function addScrollEvent() {
   const scrollBar = document.querySelector('#body .scroll-bar-wrap-class')!
-  scrollBar.addEventListener('scroll', closeDetailsWindow)
+  scrollBar.addEventListener('scroll', () => windowsManager.close('details'))
   scrollBar.addEventListener('scrollend', setMarkMap)
 }
 
@@ -195,11 +220,6 @@ function deltaTime(creationTime: number) {
   }
 }
 
-function closeDetailsWindow() {
-  detailsWindow.value?.close()
-  detailsWindow.value = null
-}
-
 async function getContentInfo(
   clipboardData: ClipboardData,
   field: 'text' | 'image'
@@ -231,7 +251,7 @@ async function getContentInfo(
   }
 }
 
-async function handleViewIconClick(
+async function preview(
   path: string,
   clipboardData: ClipboardData,
   event: MouseEvent,
@@ -239,12 +259,12 @@ async function handleViewIconClick(
 ) {
   // 点击同一个预览图标时,隐藏已显示的详情窗口
   if (
-    detailsWindow.value &&
+    windowsManager.isOpen('details') &&
     field === window.sessionStorage.getItem('field') &&
-    detailsWindow.value.location.hash.match(/creationTime=(\d+)$/)?.[1] ===
+    windowsManager.get('details').location.hash.match(/creationTime=(\d+)$/)?.[1] ===
       String(clipboardData.creationTime)
   ) {
-    closeDetailsWindow()
+    windowsManager.close('details')
     return
   }
 
@@ -274,7 +294,7 @@ async function handleViewIconClick(
   window.sessionStorage.setItem('clipboardData', JSON.stringify(clipboardData))
   window.sessionStorage.setItem('highlineHTML', renderedHTML)
   window.sessionStorage.setItem('field', field)
-  detailsWindow.value = window.open(
+  windowsManager.open(
     `#/${path}?creationTime=${clipboardData.creationTime}`,
     path,
     `width=${width},height=${height},x=${x},y=${y}`
@@ -304,9 +324,7 @@ async function setBounds() {
 
 function windowAddEventListener() {
   window.addEventListener('message', ({ data }) => {
-    if (data.type === 'closeDetailsWindow') {
-      closeDetailsWindow()
-    } else if (data.type === 'setBounds') {
+    if (data.type === 'setBounds') {
       setBounds()
     }
   })
@@ -325,7 +343,7 @@ function windowAddEventListener() {
   window.addEventListener('blur', () => {
     mainWindowVisible.value = false
     window.api.execMainWindowMethod('minimize')
-    closeDetailsWindow()
+    windowsManager.close('details')
   })
 
   window.addEventListener('focus', function () {
@@ -391,8 +409,8 @@ function windowAddEventListener() {
       scrollToBottom()
     } else if (e.key === 'Escape') {
       // 如果显示了详情窗口,则关闭详情窗口,否则关闭主窗口
-      if (detailsWindow.value) {
-        closeDetailsWindow()
+      if (windowsManager.isOpen('details')) {
+        windowsManager.close('details')
       } else {
         window.api.execMainWindowMethod('minimize')
       }
@@ -506,7 +524,7 @@ function bodyFocus() {
           </div>
         </el-popover>
         <div
-          v-show="!detailsWindow && config.mainWindowPosition === 'follow-mouse'"
+          v-show="!windowsManager.isOpen('details') && config.mainWindowPosition === 'follow-mouse'"
           id="move"
         ></div>
         <span>
@@ -580,7 +598,7 @@ function bodyFocus() {
     <div
       v-show="clipboardDatas.length"
       id="body"
-      :style="{ height: `calc(100vh - ${showSearchInput ? 87 : 55}px)` }"
+      :style="{ height: `calc(100vh - ${showSearchInput ? 32 : 0}px - 60px)` }"
     >
       <el-scrollbar
         ref="scrollbarRef"
@@ -705,14 +723,9 @@ function bodyFocus() {
             <el-icon
               title="详情"
               tabindex="-1"
-              @blur="closeDetailsWindow"
+              @blur="windowsManager.close('details')"
               @click="
-                handleViewIconClick(
-                  'details',
-                  clipboardData,
-                  $event,
-                  clipboardData.image ? 'image' : 'text'
-                )
+                preview('details', clipboardData, $event, clipboardData.image ? 'image' : 'text')
               "
             >
               <View />
@@ -727,6 +740,7 @@ function bodyFocus() {
       description="无数据"
     />
     <pre id="details"></pre>
+    <div id="total">共 {{ clipboardDatas.length }} 条</div>
   </div>
 </template>
 
@@ -777,7 +791,7 @@ function bodyFocus() {
 
 #body {
   overflow: hidden;
-  padding: 10px 0;
+  padding-top: 10px;
 
   .scroll-bar-view-class {
     display: flex;
@@ -931,5 +945,12 @@ function bodyFocus() {
     border-radius: 50%;
     flex-shrink: 0;
   }
+}
+
+#total {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
 }
 </style>

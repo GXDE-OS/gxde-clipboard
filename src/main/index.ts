@@ -137,7 +137,7 @@ function createWindow(): void {
           transparent: true,
           alwaysOnTop: true,
           parent: mainWindow, // 设置层级在父窗口之上
-          resizable: true,
+          resizable: false,
           type: 'toolbar', // 不显示任务栏窗口
           focusable: false,
           webPreferences: {

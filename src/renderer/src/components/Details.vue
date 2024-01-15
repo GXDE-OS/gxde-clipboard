@@ -13,12 +13,7 @@ onMounted(async () => {
 })
 
 function closeDetailsWindow() {
-  window.opener.postMessage(
-    {
-      type: 'closeDetailsWindow'
-    },
-    '*'
-  )
+  window.close()
 }
 
 function fullScreen() {

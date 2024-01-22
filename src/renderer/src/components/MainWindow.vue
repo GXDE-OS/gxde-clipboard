@@ -34,7 +34,15 @@ const windowsManager = new (class {
     if (this.isOpen(target)) {
       await this.close(target)
     }
-    this.windowsMap.set(target, window.open(url, target, features))
+    const newWindow = window.open(url, target, features)
+    if (newWindow) {
+      this.windowsMap.set(target, newWindow)
+      newWindow.addEventListener('unload', () => {
+        if (this.get(target) === newWindow) {
+          this.windowsMap.delete(target)
+        }
+      })
+    }
   }
   async close(target: string) {
     if (this.isOpen(target)) {
@@ -56,13 +64,14 @@ const windowsManager = new (class {
 
 windowAddEventListener()
 setBounds()
+getClipDatas()
+
 if (config.show) {
   window.api.execMainWindowMethod('show')
   mainWindowVisible.value = true
 }
 
 onMounted(async () => {
-  clipboardDatas.push(...(await window.api.getClipDataList()))
   addScrollEvent()
 })
 
@@ -70,6 +79,49 @@ watch([searchString, currentColor, clipboardDatas], () => {
   bodyFocus()
   setTimeout(setMarkMap)
 })
+
+async function getClipDatas() {
+  const clipDataList = await window.api.getClipDataList()
+  if (config.number === 0 || config.time === 0) {
+    clipboardDatas.splice(0, Infinity, ...clipDataList)
+    return
+  }
+  if (config.expirationType === 'time') {
+    const now = Date.now()
+    const expirationTime = now - config.time * 24 * 60 * 60 * 1000
+    clipboardDatas.splice(
+      0,
+      Infinity,
+      ...clipDataList.filter(
+        (clipData) =>
+          clipData.creationTime >= expirationTime ||
+          clipData.state ||
+          clipData.color ||
+          clipData.order
+      )
+    )
+  } else {
+    const specialItems: ClipboardData[] = []
+    const nomalItems: ClipboardData[] = []
+    for (const clipData of clipDataList) {
+      if (clipData.state || clipData.color || clipData.order) {
+        specialItems.push(clipData)
+      } else {
+        nomalItems.push(clipData)
+      }
+    }
+    if (specialItems.length >= config.number) {
+      clipboardDatas.splice(0, Infinity, ...specialItems.slice(0, config.number))
+    } else {
+      const requiredItems = [
+        ...specialItems,
+        ...nomalItems.slice(0, config.number - specialItems.length)
+      ]
+      requiredItems.sort((a, b) => b.creationTime - a.creationTime)
+      clipboardDatas.splice(0, Infinity, ...requiredItems)
+    }
+  }
+}
 
 function changeOneData(clipboardData: ClipboardData, field: string, value: string | number) {
   clipboardData[field] = value
@@ -326,6 +378,8 @@ function windowAddEventListener() {
   window.addEventListener('message', ({ data }) => {
     if (data.type === 'setBounds') {
       setBounds()
+    } else if (data.type === 'refreshClipDatas') {
+      getClipDatas()
     }
   })
 
@@ -486,8 +540,8 @@ function scrollToBottom() {
   scrollbarRef.value!.scrollTo({ top: scrollHeight, behavior: 'smooth' })
 }
 
-window.api.updatePageData((_, dataList) => {
-  clipboardDatas.splice(0, Infinity, ...dataList)
+window.api.onUpdatePageData(async () => {
+  await getClipDatas()
   scrollToTop()
 })
 
@@ -598,7 +652,7 @@ function bodyFocus() {
     <div
       v-show="clipboardDatas.length"
       id="body"
-      :style="{ height: `calc(100vh - ${showSearchInput ? 32 : 0}px - 60px)` }"
+      :style="{ height: `calc(100vh - ${showSearchInput ? 32 : 0}px - 70px)` }"
     >
       <el-scrollbar
         ref="scrollbarRef"

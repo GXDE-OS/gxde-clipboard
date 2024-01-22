@@ -11,9 +11,7 @@ declare global {
       execMainWindowMethod: (methodName: string) => void
       getMousePosition: () => { x: number; y: number }
       paste: (clipboardData: ClipboardData, field: 'text' | 'image') => void
-      updatePageData: (
-        callback: (event: Electron.IpcRendererEvent, dataList: ClipboardData[]) => void
-      ) => void
+      onUpdatePageData: (callback: (event: Electron.IpcRendererEvent) => void) => void
     }
   }
 }

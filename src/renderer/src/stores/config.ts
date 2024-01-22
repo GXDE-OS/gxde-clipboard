@@ -8,7 +8,10 @@ export const useConfigStore = defineStore('config', {
       heightRate: 0.7,
       mainWindowPosition: 'right',
       transparency: 60, // 主界面透明度
-      show: true // 软件启动时显示主界面
+      show: true, // 软件启动时显示主界面
+      expirationType: 'number', // 过期类型，'number' 代表天数，'time' 代表时间
+      number: 2000, // 过期天数
+      time: 0 // 过期时间
     }
     return {
       ...defaultConfig,
@@ -23,6 +26,9 @@ type Config = {
   mainWindowPosition: 'left' | 'right' | 'follow-mouse'
   transparency: number
   show: boolean
+  expirationType: 'number' | 'time'
+  number: number
+  time: number
 }
 
 const config = useConfigStore()

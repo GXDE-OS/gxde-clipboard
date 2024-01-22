@@ -84,7 +84,7 @@ function createWindow(): void {
       clipboardData.text = text
     }
     await addClipData(clipboardData)
-    mainWindow.webContents.send('updatePageData', await getClipDataList())
+    mainWindow.webContents.send('updatePageData')
   })
 
   // 注册全局快捷键

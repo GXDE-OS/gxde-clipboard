@@ -13,6 +13,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import clipboardListener from 'clipboard-event'
 import { keyboard, Key } from '@nut-tree/nut-js'
+import { default as AutoLaunch } from 'auto-launch'
 import icon from '../../resources/icon.png?asset'
 import {
   addClipData,
@@ -41,18 +42,44 @@ function createWindow(): void {
     }
   })
 
+  async function setContextMenu(tray: Tray) {
+    const minecraftAutoLauncher = new AutoLaunch({ name: 'clip' })
+    const template = [
+      {
+        label: '退出',
+        click: () => {
+          mainWindow.close()
+        }
+      }
+    ]
+    if (app.isPackaged) {
+      const isEnabled: boolean = await minecraftAutoLauncher.isEnabled()
+      if (isEnabled) {
+        template.unshift({
+          label: '取消开机启动',
+          click: () => {
+            minecraftAutoLauncher.disable()
+            setContextMenu(tray)
+          }
+        })
+      } else {
+        template.unshift({
+          label: '开机启动',
+          click: () => {
+            minecraftAutoLauncher.enable()
+            setContextMenu(tray)
+          }
+        })
+      }
+    }
+    const contextMenu = Menu.buildFromTemplate(template)
+    tray.setContextMenu(contextMenu)
+  }
+
   // 创建托盘图标
   const tray = new Tray(icon)
   tray.setToolTip('丁丁剪贴板')
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: '退出',
-      click: () => {
-        mainWindow.close()
-      }
-    }
-  ])
-  tray.setContextMenu(contextMenu)
+  setContextMenu(tray)
   tray.on('click', function () {
     mainWindow.show()
   })

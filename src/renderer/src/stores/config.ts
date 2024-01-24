@@ -6,11 +6,11 @@ export const useConfigStore = defineStore('config', {
     const defaultConfig: Config = {
       width: 300,
       heightRate: 0.7,
-      mainWindowPosition: 'right',
+      mainWindowPosition: 'follow-mouse',
       transparency: 60, // 主界面透明度
       show: true, // 软件启动时显示主界面
       expirationType: 'number', // 过期类型，'number' 代表天数，'time' 代表时间
-      number: 2000, // 过期天数
+      number: 200, // 过期条数
       time: 0 // 过期时间
     }
     return {

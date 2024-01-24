@@ -37,7 +37,7 @@ const windowsManager = new (class {
     const newWindow = window.open(url, target, features)
     if (newWindow) {
       this.windowsMap.set(target, newWindow)
-      newWindow.addEventListener('unload', () => {
+      newWindow.addEventListener('beforeunload', () => {
         if (this.get(target) === newWindow) {
           this.windowsMap.delete(target)
         }
@@ -629,7 +629,7 @@ function bodyFocus() {
           >
             <Search />
           </el-icon>
-          <el-popover :width="200" trigger="hover" placement="bottom-end">
+          <el-popover :width="200" trigger="hover" placement="bottom-end" :show-arrow="false">
             <template #reference>
               <el-icon title="设置(右键打开全部设置)" @click.right="router.push('settings')">
                 <Setting />

@@ -14,7 +14,8 @@ const api = {
   getMousePosition: () => ipcRenderer.invoke('getMousePosition'),
   paste: (clipboardData: ClipboardData, field: 'text' | 'image') =>
     ipcRenderer.invoke('paste', clipboardData, field),
-  onUpdatePageData: (callback) => ipcRenderer.on('updatePageData', callback)
+  onMessage: (callback: (event: Electron.IpcRendererEvent, message: string) => void) =>
+    ipcRenderer.on('message', callback)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

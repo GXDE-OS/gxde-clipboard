@@ -393,25 +393,7 @@ function windowAddEventListener() {
     }
   })
 
-  // 失去焦点时隐藏窗口
-  window.addEventListener('blur', () => {
-    mainWindowVisible.value = false
-    window.api.execMainWindowMethod('minimize')
-    windowsManager.close('details')
-  })
-
-  window.addEventListener('focus', function () {
-    if (config.mainWindowPosition === 'follow-mouse') {
-      setBounds()
-    }
-    mainWindowVisible.value = true
-    // 清除选中文本
-    window.getSelection()?.removeAllRanges()
-  })
-
-  window.addEventListener('resize', function () {
-    setMarkMap()
-  })
+  window.addEventListener('resize', setMarkMap)
 
   // 设置操作快捷键
   window.addEventListener('keyup', (e: KeyboardEvent) => {
@@ -540,9 +522,24 @@ function scrollToBottom() {
   scrollbarRef.value!.scrollTo({ top: scrollHeight, behavior: 'smooth' })
 }
 
-window.api.onUpdatePageData(async () => {
-  await getClipDatas()
-  scrollToTop()
+window.api.onMessage(async (_event, message: string) => {
+  switch (message) {
+    case 'updatePageData':
+      await getClipDatas()
+      scrollToTop()
+      break
+    case 'hideMainWindow':
+      mainWindowVisible.value = false
+      window.api.execMainWindowMethod('minimize')
+      windowsManager.close('details')
+      break
+    case 'showMainWindow':
+      if (config.mainWindowPosition === 'follow-mouse') setBounds()
+      mainWindowVisible.value = true
+      // 清除选中文本
+      window.getSelection()?.removeAllRanges()
+      break
+  }
 })
 
 // 使popover失去焦点
@@ -777,7 +774,6 @@ function bodyFocus() {
             <el-icon
               title="详情"
               tabindex="-1"
-              @blur="windowsManager.close('details')"
               @click="
                 preview('details', clipboardData, $event, clipboardData.image ? 'image' : 'text')
               "
@@ -790,7 +786,7 @@ function bodyFocus() {
     </div>
     <el-empty
       v-show="!clipboardDatas.length"
-      :style="{ height: `calc(100vh - ${showSearchInput ? 87 : 55}px)` }"
+      :style="{ height: `calc(100vh - ${showSearchInput ? 32 : 0}px - 70px)` }"
       description="无数据"
     />
     <pre id="details"></pre>

@@ -1,6 +1,7 @@
 import {
   app,
   BrowserWindow,
+  webContents,
   Tray,
   Menu,
   clipboard,
@@ -23,7 +24,7 @@ import {
   changeOneData
 } from '../data/operate-data'
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 0,
@@ -81,7 +82,8 @@ function createWindow(): void {
   tray.setToolTip('丁丁剪贴板')
   setContextMenu(tray)
   tray.on('click', function () {
-    mainWindow.show()
+    mainWindow.restore()
+    mainWindow.webContents.send('message', 'showMainWindow')
   })
   tray.on('right-click', function () {
     tray.popUpContextMenu()
@@ -111,13 +113,14 @@ function createWindow(): void {
       clipboardData.text = text
     }
     await addClipData(clipboardData)
-    mainWindow.webContents.send('updatePageData')
+    mainWindow.webContents.send('message', 'updatePageData')
   })
 
   // 注册全局快捷键
   if (!globalShortcut.isRegistered('Shift+CommandOrControl+V')) {
     globalShortcut.register('Shift+CommandOrControl+V', async () => {
       mainWindow.restore()
+      mainWindow.webContents.send('message', 'showMainWindow')
     })
   }
   // shift+ctrl+c只复制内容到系统剪贴板,不记录到软件
@@ -166,7 +169,6 @@ function createWindow(): void {
           parent: mainWindow, // 设置层级在父窗口之上
           resizable: false,
           type: 'toolbar', // 不显示任务栏窗口
-          focusable: false,
           webPreferences: {
             preload: join(__dirname, '../preload/index.js')
           }
@@ -183,6 +185,7 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+  return mainWindow
 }
 
 // This method will be called when Electron has finished
@@ -199,12 +202,17 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  createWindow()
+  const mainWindow = createWindow()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+  app.on('browser-window-blur', function () {
+    if (!webContents.getFocusedWebContents()) {
+      mainWindow.webContents.send('message', 'hideMainWindow')
+    }
   })
 })
 

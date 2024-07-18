@@ -9,7 +9,13 @@ fs.access(clipboardDatasPath).catch(async () => {
 })
 
 export async function getClipDataList(searchString?: string) {
-  const dataList = JSON.parse((await fs.readFile(clipboardDatasPath, 'utf-8')) || '[]')
+  let dataList: ClipboardData[] = []
+  // 如果解析文件失败，清空数据文件内容
+  try {
+    dataList = JSON.parse((await fs.readFile(clipboardDatasPath, 'utf-8')) || '[]')
+  } catch (error) {
+    await fs.writeFile(clipboardDatasPath, JSON.stringify([], null, 4))
+  }
   if (searchString && dataList.length) {
     const lowerCase = searchString.toLowerCase()
     return dataList.filter(({ text }) => text.toLowerCase().includes(lowerCase))
@@ -19,7 +25,13 @@ export async function getClipDataList(searchString?: string) {
 }
 
 export async function addClipData(clipboardData: ClipboardData) {
-  const dataList = JSON.parse((await fs.readFile(clipboardDatasPath, 'utf-8')) || '[]')
+  let dataList: ClipboardData[] = []
+  // 如果解析文件失败，清空数据文件内容
+  try {
+    dataList = JSON.parse((await fs.readFile(clipboardDatasPath, 'utf-8')) || '[]')
+  } catch (error) {
+    await fs.writeFile(clipboardDatasPath, JSON.stringify([], null, 4))
+  }
   if (dataList[0]?.image === clipboardData.image && dataList[0]?.text === clipboardData.text) return
   dataList.unshift(clipboardData)
   await fs.writeFile(clipboardDatasPath, JSON.stringify(dataList, null, 4))
@@ -41,7 +53,7 @@ export async function setClipboardDatas(clipboardDatas: ClipboardData[]) {
 export async function changeOneData(clipboardData: ClipboardData) {
   const dataList = await getClipDataList()
   Object.assign(
-    dataList.find(({ creationTime }) => creationTime === clipboardData.creationTime),
+    dataList.find(({ creationTime }) => creationTime === clipboardData.creationTime)!,
     clipboardData
   )
   await fs.writeFile(clipboardDatasPath, JSON.stringify(dataList, null, 4))

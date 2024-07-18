@@ -13,7 +13,7 @@ import {
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import clipboardListener from 'clipboard-event'
-import { keyboard, Key } from '@nut-tree/nut-js'
+import { keyboard, Key } from '@nut-tree-fork/nut-js'
 import { default as AutoLaunch } from 'auto-launch'
 import icon from '../../resources/icon.png?asset'
 import {

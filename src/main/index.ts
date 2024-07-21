@@ -119,7 +119,7 @@ function createWindow(): BrowserWindow {
   // 注册全局快捷键
   if (!globalShortcut.isRegistered('Shift+CommandOrControl+V')) {
     globalShortcut.register('Shift+CommandOrControl+V', async () => {
-      mainWindow.restore()
+      mainWindow.show()
       mainWindow.webContents.send('message', 'showMainWindow')
     })
   }
@@ -130,6 +130,12 @@ function createWindow(): BrowserWindow {
       await keyboard.pressKey(Key.LeftControl, Key.C)
       await keyboard.releaseKey(Key.LeftControl, Key.C)
       disabled = false
+    })
+  }
+  // 打开调试工具
+  if (!globalShortcut.isRegistered('Shift+CommandOrControl+I')) {
+    globalShortcut.register('Shift+CommandOrControl+I', async () => {
+      mainWindow.webContents.openDevTools()
     })
   }
 
@@ -193,7 +199,7 @@ function createWindow(): BrowserWindow {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('clip')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

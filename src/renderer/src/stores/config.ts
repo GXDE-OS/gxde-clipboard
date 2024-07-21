@@ -35,7 +35,7 @@ const config = useConfigStore()
 watch(
   config,
   () => {
-    window.localStorage.setItem('config', JSON.stringify(config))
+    window.localStorage.setItem('config', JSON.stringify(config.$state))
   },
   { immediate: true }
 )

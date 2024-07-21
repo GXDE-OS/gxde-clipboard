@@ -50,8 +50,8 @@ function resizeWindow() {
         v-model="config.expirationType"
         @change="refreshClipDatas"
       >
-        <el-radio label="number">按条数</el-radio>
-        <el-radio label="time">按天</el-radio>
+        <el-radio value="number">按条数</el-radio>
+        <el-radio value="time">按天</el-radio>
       </el-radio-group>
       <div id="expiration-input">
         <el-input-number

@@ -112,8 +112,10 @@ function createWindow(): BrowserWindow {
       const text = clipboard.readText()
       clipboardData.text = text
     }
-    await addClipData(clipboardData)
-    mainWindow.webContents.send('message', 'updatePageData')
+    if (clipboardData.image || clipboardData.text) {
+      await addClipData(clipboardData)
+      mainWindow.webContents.send('message', 'updatePageData')
+    }
   })
 
   // 注册全局快捷键

@@ -1,9 +1,12 @@
 {
   "name": "clip",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "An Electron application with Vue and TypeScript",
   "main": "./out/main/index.js",
-  "author": "denjay",
+  "author": {
+    "name": "denjay",
+    "email": "295077487@qq.com"
+  },
   "homepage": "https://github.com/denjay/clip",
   "scripts": {
     "format": "prettier --write .",
@@ -21,7 +24,16 @@
   },
   "build": {
     "productName": "clip",
-    "appId": "https://github.com/denjay/clip"
+    "appId": "https://github.com/denjay/clip",
+    "linux": {
+      "icon": "build/icons",
+      "category": "Utility",
+      "target": [
+        "deb",
+        "AppImage",
+        "snap"
+      ]
+    }
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",

@@ -160,8 +160,7 @@ function createWindow(): BrowserWindow {
       const image = nativeImage.createFromDataURL(clipboardData.image)
       clipboard.writeImage(image)
     }
-    await keyboard.pressKey(Key.LeftControl, Key.V)
-    await keyboard.releaseKey(Key.LeftControl, Key.V)
+    await keyboard.type(Key.LeftControl, Key.V)
     disabled = false
   })
 

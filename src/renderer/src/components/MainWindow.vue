@@ -145,7 +145,7 @@ function setClipboardDatas() {
 }
 
 async function paste(clipboardData: ClipboardData, field: 'text' | 'image') {
-  window.api.execMainWindowMethod('minimize')
+  window.api.execMainWindowMethod('hide')
   window.api.paste(toRaw(clipboardData), field)
 }
 
@@ -448,7 +448,7 @@ function windowAddEventListener() {
       if (windowsManager.isOpen('details')) {
         windowsManager.close('details')
       } else {
-        window.api.execMainWindowMethod('minimize')
+        window.api.execMainWindowMethod('hide')
       }
     }
   })
@@ -530,7 +530,7 @@ window.api.onMessage(async (_event, message: string) => {
       break
     case 'hideMainWindow':
       mainWindowVisible.value = false
-      window.api.execMainWindowMethod('minimize')
+      window.api.execMainWindowMethod('hide')
       windowsManager.close('details')
       break
     case 'showMainWindow':

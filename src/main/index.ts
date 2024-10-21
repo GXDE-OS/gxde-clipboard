@@ -13,7 +13,7 @@ import {
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import clipboardListener from 'clipboard-event'
-import { keyboard, Key } from '@nut-tree-fork/nut-js'
+import { keyboard, Key, mouse } from '@nut-tree-fork/nut-js'
 import { default as AutoLaunch } from 'auto-launch'
 import icon from '../../resources/icon.png?asset'
 import {
@@ -149,7 +149,16 @@ function createWindow(): BrowserWindow {
     async (_, clipboardDatas) => await setClipboardDatas(clipboardDatas)
   )
   ipcMain.handle('execMainWindowMethod', async (_, methodName) => await mainWindow[methodName]())
-  ipcMain.handle('getMousePosition', () => screen.getCursorScreenPoint())
+  ipcMain.handle('getMousePosition', async () => {
+    // 将像素点转换为DIP点(electron的获取鼠标坐标的方法screen.getCursorScreenPoint在linux上有问题)
+    const pixelPointer = await mouse.getPosition()
+    const scaleFactor = screen.getPrimaryDisplay().scaleFactor
+    const dipPointer = {
+      x: pixelPointer.x / scaleFactor,
+      y: pixelPointer.y / scaleFactor
+    }
+    return dipPointer
+  })
   ipcMain.handle('paste', async (_, clipboardData, field) => {
     disabled = true
     // 先清空,否则会出现在文本框粘贴图片时,实际粘贴的是之前存在剪贴板中的文字

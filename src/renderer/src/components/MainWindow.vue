@@ -145,8 +145,15 @@ function setClipboardDatas() {
 }
 
 async function paste(clipboardData: ClipboardData, field: 'text' | 'image') {
-  window.api.execMainWindowMethod('hide')
+  await hideMainWindow()
   window.api.paste(toRaw(clipboardData), field)
+}
+
+async function hideMainWindow() {
+  // windows系统下使用hide方法隐藏窗口会导致要粘贴的窗口不能获取焦点,从而粘贴失败
+  // Linux系统下使用minimize方法隐藏窗口会出现窗口无法彻底消失的问题
+  const method = navigator.userAgent.includes('Win') ? 'minimize' : 'hide'
+  await window.api.execMainWindowMethod(method)
 }
 
 function handleContentClick(
@@ -448,7 +455,7 @@ function windowAddEventListener() {
       if (windowsManager.isOpen('details')) {
         windowsManager.close('details')
       } else {
-        window.api.execMainWindowMethod('hide')
+        hideMainWindow()
       }
     }
   })
@@ -530,7 +537,7 @@ window.api.onMessage(async (_event, message: string) => {
       break
     case 'hideMainWindow':
       mainWindowVisible.value = false
-      window.api.execMainWindowMethod('hide')
+      hideMainWindow()
       windowsManager.close('details')
       break
     case 'showMainWindow':

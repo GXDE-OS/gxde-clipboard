@@ -1,6 +1,12 @@
-# clip
+\*\*\*\*# clip
 
-An Electron application with Vue and TypeScript
+A cross-platform clipboard management software.
+
+Shortcut: `ctrl+shift+v`
+
+### Screenshot
+
+![alt text](resources/screenshot.png)
 
 ## Recommended IDE Setup
 
@@ -17,6 +23,7 @@ $ npm install
 ### Development
 
 ```bash
+$ sudo chmod 777 node_modules/clipboard-event/platform/clipboard-event-handler-linux
 $ npm run dev
 ```
 
